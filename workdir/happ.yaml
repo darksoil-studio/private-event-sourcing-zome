@@ -1,0 +1,17 @@
+---
+manifest_version: "1"
+name: private-event-sourcing_test
+description: ~
+roles:   
+  - name: private_event_sourcing_test
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      bundled: "./private_event_sourcing_test.dna"
+      modifiers:
+        network_seed: ~
+        properties: ~
+        origin_time: ~
+      version: ~
+      clone_limit: 0
