@@ -50,6 +50,31 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
     Ok(entry_hash)
 }
 
+pub fn send_private_event_to_new_recipients(
+    event_hash: EntryHash,
+    recipients: Vec<AgentPubKey>,
+) -> ExternResult<()> {
+    let Some(private_event_entry) = query_private_event_entry(event_hash)? else {
+        return Err(wasm_error!(
+            "PrivateEventEntry with hash {event_hash} not found."
+        ));
+    };
+
+    // Send to recipients
+
+    send_remote_signal(
+        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
+            private_event_entry.clone(),
+        ))
+        .map_err(|err| wasm_error!(err))?,
+        recipients.clone(),
+    )?;
+    for recipient in recipients {
+        create_encrypted_message(recipient, private_event_entry.clone())?;
+    }
+    Ok(())
+}
+
 fn check_is_linked_device(agent: AgentPubKey) -> ExternResult<()> {
     let my_devices = query_my_linked_devices()?;
     if my_devices.contains(&agent) {
