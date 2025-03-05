@@ -7,12 +7,25 @@ use crate::{
     utils::create_relaxed, PrivateEventSourcingRemoteSignal, Signal,
 };
 
-pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> {
+pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> + Clone {
     /// Whether the given entry is to be accepted in to our source chain
-    fn validate(&self, author: AgentPubKey) -> ExternResult<ValidateCallbackResult>;
+    fn validate(
+        &self,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<ValidateCallbackResult>;
 
     /// The agents other than the linked devices for the author that are suposed to receive this entry
-    fn recipients(&self) -> ExternResult<Vec<AgentPubKey>>;
+    fn recipients(
+        &self,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<Vec<AgentPubKey>>;
+
+    /// Code to run after an event has been committed
+    fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
+        Ok(())
+    }
 }
 
 fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<PrivateEventEntry> {
@@ -34,7 +47,9 @@ fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
-    let validation_outcome = private_event.validate(agent_info()?.agent_latest_pubkey)?;
+    let entry = build_private_event_entry(private_event.clone())?;
+    let validation_outcome =
+        private_event.validate(agent_info()?.agent_latest_pubkey, entry.0.event.timestamp)?;
 
     match validation_outcome {
         ValidateCallbackResult::Valid => {}
@@ -46,8 +61,6 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
             "Could not create private event because of unresolved dependencies."
         ))?,
     };
-
-    let entry = build_private_event_entry(private_event)?;
     let entry_hash = hash_entry(&entry)?;
 
     internal_create_private_event::<T>(entry, false)?;
@@ -66,7 +79,7 @@ pub fn send_private_event_to_new_recipients(
     };
 
     // Send to recipients
-    info!("Sending private event entry to recipients: {recipients:?}.");
+    info!("Sending private event entry to new recipients: {recipients:?}.");
 
     send_remote_signal(
         SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
@@ -108,14 +121,17 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
         .map_err(|err| wasm_error!("Failed to deserialize the private event: {err:?}."))?;
 
-    private_event.validate(private_event_entry.0.author.clone())
+    private_event.validate(
+        private_event_entry.0.author.clone(),
+        private_event_entry.0.event.timestamp,
+    )
 }
 
 pub fn receive_private_event<T: PrivateEvent>(
     provenance: AgentPubKey,
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<()> {
-    debug!("[receive_private_event_from_linked_device/start]");
+    debug!("[receive_private_event/start]");
 
     // check_is_linked_device(provenance)?;
 
@@ -123,7 +139,7 @@ pub fn receive_private_event<T: PrivateEvent>(
 
     match outcome {
         ValidateCallbackResult::Valid => {
-            info!("Received a PrivateEvent from a linked device.");
+            info!("Received a PrivateEvent.");
             internal_create_private_event::<T>(private_event_entry, true)?;
         }
         ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
@@ -133,7 +149,7 @@ pub fn receive_private_event<T: PrivateEvent>(
             }))?;
         }
         ValidateCallbackResult::Invalid(reason) => {
-            return Err(wasm_error!("Invalid PrivateEvent: {reason:?}."));
+            return Err(wasm_error!("Invalid PrivateEvent: {:?}.", reason));
         }
     }
     Ok(())
@@ -163,7 +179,7 @@ pub fn receive_private_events<T: PrivateEvent>(
 
         match outcome {
             ValidateCallbackResult::Valid => {
-                info!("Received a PrivateEvent from a linked device.");
+                info!("Received a PrivateEvent.");
                 internal_create_private_event::<T>(private_event_entry, true)?;
             }
             ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
@@ -173,7 +189,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 }))?;
             }
             ValidateCallbackResult::Invalid(reason) => {
-                return Err(wasm_error!("Invalid PrivateEvent: {reason}."));
+                return Err(wasm_error!("Invalid PrivateEvent: {}.", reason));
             }
         }
     }
@@ -198,7 +214,15 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
         action: record.signed_action,
         app_entry: app_entry.clone(),
     })?;
-    send_private_event_to_linked_devices_and_recipients::<T>(private_event_entry)?;
+    send_private_event_to_linked_devices_and_recipients::<T>(private_event_entry.clone())?;
+
+    let private_event = T::try_from(private_event_entry.0.event.content)
+        .map_err(|err| wasm_error!("Failed to deserialize private event: {err:?}."))?;
+    private_event.post_commit(
+        private_event_entry.0.author,
+        private_event_entry.0.event.timestamp,
+    )?;
+
     Ok(())
 }
 
@@ -217,7 +241,10 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
         .map_err(|err| wasm_error!("Failed to deserialize private event: {err:?}."))?;
 
-    let recipients = private_event.recipients()?;
+    let recipients = private_event.recipients(
+        private_event_entry.0.author.clone(),
+        private_event_entry.0.event.timestamp,
+    )?;
 
     send_remote_signal(
         SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(

@@ -2,17 +2,25 @@ use example_integrity::*;
 use hdk::prelude::*;
 use private_event_sourcing::*;
 
-#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
+#[derive(Serialize, Deserialize, Debug, SerializedBytes, Clone)]
 pub struct SharedEntry {
     recipient: AgentPubKey,
     content: String,
 }
 
 impl PrivateEvent for SharedEntry {
-    fn validate(&self, author: AgentPubKey) -> ExternResult<ValidateCallbackResult> {
+    fn validate(
+        &self,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<ValidateCallbackResult> {
         Ok(ValidateCallbackResult::Valid)
     }
-    fn recipients(&self) -> ExternResult<Vec<AgentPubKey>> {
+    fn recipients(
+        &self,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<Vec<AgentPubKey>> {
         Ok(vec![self.recipient.clone()])
     }
 }
@@ -39,4 +47,16 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     } else {
         Ok(())
     }
+}
+
+#[hdk_extern(infallible)]
+fn scheduled_synchronize_with_linked_devices(_: Option<Schedule>) -> Option<Schedule> {
+    if let Err(err) = commit_my_pending_encrypted_messages::<SharedEntry>() {
+        error!("Failed to commit my encrypted messages: {err:?}");
+    }
+    if let Err(err) = synchronize_with_linked_devices(()) {
+        error!("Failed to synchronize with other agents: {err:?}");
+    }
+
+    Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
 }

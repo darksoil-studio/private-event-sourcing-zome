@@ -1,30 +1,6 @@
-import {
-	ActionHash,
-	AgentPubKey,
-	EntryHash,
-	EntryHashB64,
-	NewEntryAction,
-	encodeHashToBase64,
-} from '@holochain/client';
+import { EntryHashB64, encodeHashToBase64 } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
-import {
-	AsyncComputed,
-	allRevisionsOfEntrySignal,
-	collectionSignal,
-	deletedLinksSignal,
-	deletesForEntrySignal,
-	immutableEntrySignal,
-	latestVersionOfEntrySignal,
-	liveLinksSignal,
-	pipe,
-} from '@tnesh-stack/signals';
-import {
-	EntryRecord,
-	HashType,
-	MemoHoloHashMap,
-	retype,
-	slice,
-} from '@tnesh-stack/utils';
+import { AsyncComputed } from '@tnesh-stack/signals';
 
 import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
 import { PrivateEventEntry, SignedEvent } from './types.js';
