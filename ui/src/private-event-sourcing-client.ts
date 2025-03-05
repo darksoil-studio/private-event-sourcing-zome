@@ -1,22 +1,29 @@
-import { 
-  SignedActionHashed,
-  CreateLink,
-  Link,
-  DeleteLink,
-  Delete,
-  AppClient, 
-  Record, 
-  ActionHash, 
-  EntryHash, 
-  AgentPubKey,
+import {
+	ActionHash,
+	AgentPubKey,
+	AppClient,
+	CreateLink,
+	Delete,
+	DeleteLink,
+	EntryHash,
+	EntryHashB64,
+	Link,
+	SignedActionHashed,
 } from '@holochain/client';
 import { EntryRecord, ZomeClient } from '@tnesh-stack/utils';
 
-import { PrivateEventSourcingSignal } from './types.js';
+import { PrivateEventEntry, PrivateEventSourcingSignal } from './types.js';
 
 export class PrivateEventSourcingClient extends ZomeClient<PrivateEventSourcingSignal> {
+	constructor(
+		public client: AppClient,
+		public roleName: string,
+		public zomeName = 'private_event_sourcing',
+	) {
+		super(client, roleName, zomeName);
+	}
 
-  constructor(public client: AppClient, public roleName: string, public zomeName = 'private_event_sourcing') {
-    super(client, roleName, zomeName);
-  }
+	queryPrivateEventEntries(): Promise<Record<EntryHashB64, PrivateEventEntry>> {
+		return this.callZome('query_private_event_entries', undefined);
+	}
 }

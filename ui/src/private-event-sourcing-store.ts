@@ -1,21 +1,75 @@
-import { 
-  collectionSignal, 
-  liveLinksSignal, 
-  deletedLinksSignal, 
-  allRevisionsOfEntrySignal,
-  latestVersionOfEntrySignal, 
-  immutableEntrySignal, 
-  deletesForEntrySignal, 
-  AsyncComputed,
-  pipe,
-} from "@tnesh-stack/signals";
-import { slice, HashType, retype, EntryRecord, MemoHoloHashMap } from "@tnesh-stack/utils";
-import { NewEntryAction, Record, ActionHash, EntryHash, AgentPubKey } from '@holochain/client';
+import {
+	ActionHash,
+	AgentPubKey,
+	EntryHash,
+	EntryHashB64,
+	NewEntryAction,
+	encodeHashToBase64,
+} from '@holochain/client';
+import { decode } from '@msgpack/msgpack';
+import {
+	AsyncComputed,
+	allRevisionsOfEntrySignal,
+	collectionSignal,
+	deletedLinksSignal,
+	deletesForEntrySignal,
+	immutableEntrySignal,
+	latestVersionOfEntrySignal,
+	liveLinksSignal,
+	pipe,
+} from '@tnesh-stack/signals';
+import {
+	EntryRecord,
+	HashType,
+	MemoHoloHashMap,
+	retype,
+	slice,
+} from '@tnesh-stack/utils';
 
 import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
+import { PrivateEventEntry, SignedEvent } from './types.js';
+import { asyncReadable } from './utils.js';
 
-export class PrivateEventSourcingStore {
+export class PrivateEventSourcingStore<E> {
+	constructor(public client: PrivateEventSourcingClient) {}
 
-  constructor(public client: PrivateEventSourcingClient) {}
-  
+	privateEventEntries = asyncReadable<Record<EntryHashB64, PrivateEventEntry>>(
+		async set => {
+			const entries = await this.client.queryPrivateEventEntries();
+			set(entries);
+
+			return this.client.onSignal(signal => {
+				if (signal.type !== 'EntryCreated') return;
+
+				entries[encodeHashToBase64(signal.action.hashed.content.entry_hash)] =
+					signal.app_entry;
+				set(entries);
+			});
+		},
+	);
+
+	privateEvents = new AsyncComputed(() => {
+		const privateEventEntries = this.privateEventEntries.get();
+
+		if (privateEventEntries.status !== 'completed') return privateEventEntries;
+
+		const privateEvents: Record<EntryHashB64, SignedEvent<E>> = {};
+
+		for (const [entryHash, privateEventEntry] of Object.entries(
+			privateEventEntries.value,
+		)) {
+			privateEvents[entryHash] = {
+				...privateEventEntry,
+				event: {
+					timestamp: privateEventEntry.event.timestamp,
+					content: decode(privateEventEntry.event.content) as E,
+				},
+			};
+		}
+
+		return {
+			status: 'completed',
+			value: privateEvents,
+		};
+	});
 }

@@ -9,7 +9,7 @@ use crate::{
 
 pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> {
     /// Whether the given entry is to be accepted in to our source chain
-    fn validate(&self) -> ExternResult<ValidateCallbackResult>;
+    fn validate(&self, author: AgentPubKey) -> ExternResult<ValidateCallbackResult>;
 
     /// The agents other than the linked devices for the author that are suposed to receive this entry
     fn recipients(&self) -> ExternResult<Vec<AgentPubKey>>;
@@ -34,7 +34,7 @@ fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
-    let validation_outcome = private_event.validate()?;
+    let validation_outcome = private_event.validate(agent_info()?.agent_latest_pubkey)?;
 
     let ValidateCallbackResult::Valid = validation_outcome else {
         return Err(wasm_error!(
@@ -102,7 +102,7 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
         .map_err(|err| wasm_error!("Failed to deserialize the private event: {err:?}."))?;
 
-    private_event.validate()
+    private_event.validate(private_event_entry.0.author.clone())
 }
 
 pub fn receive_private_event_from_linked_device<T: PrivateEvent>(
