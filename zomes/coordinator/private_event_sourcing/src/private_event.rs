@@ -63,7 +63,7 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
     };
     let entry_hash = hash_entry(&entry)?;
 
-    internal_create_private_event::<T>(entry, false)?;
+    internal_create_private_event::<T>(entry)?;
 
     Ok(entry_hash)
 }
@@ -140,7 +140,7 @@ pub fn receive_private_event<T: PrivateEvent>(
     match outcome {
         ValidateCallbackResult::Valid => {
             info!("Received a PrivateEvent.");
-            internal_create_private_event::<T>(private_event_entry, true)?;
+            internal_create_private_event::<T>(private_event_entry)?;
         }
         ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
             create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
@@ -180,7 +180,7 @@ pub fn receive_private_events<T: PrivateEvent>(
         match outcome {
             ValidateCallbackResult::Valid => {
                 info!("Received a PrivateEvent.");
-                internal_create_private_event::<T>(private_event_entry, true)?;
+                internal_create_private_event::<T>(private_event_entry)?;
             }
             ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
                 create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
@@ -198,13 +198,9 @@ pub fn receive_private_events<T: PrivateEvent>(
 
 pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
-    relaxed: bool,
 ) -> ExternResult<()> {
     let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
-    let action_hash = match relaxed {
-        true => create_relaxed(app_entry.clone())?,
-        false => create_entry(app_entry.clone())?,
-    };
+    let action_hash = create_relaxed(app_entry.clone())?;
     let Some(record) = get(action_hash, GetOptions::local())? else {
         return Err(wasm_error!(
             "Unreachable: could not get the record that was just created."

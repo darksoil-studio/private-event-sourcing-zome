@@ -23,7 +23,7 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
 
             match valid {
                 ValidateCallbackResult::Valid => {
-                    internal_create_private_event::<T>(private_event_entry, true)?;
+                    internal_create_private_event::<T>(private_event_entry)?;
                 }
                 ValidateCallbackResult::Invalid(reason) => {
                     error!("Invalid awaiting dependencies entry: {reason}");
