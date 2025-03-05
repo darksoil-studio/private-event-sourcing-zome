@@ -1,28 +1,21 @@
----
-manifest_version: "1"
+manifest_version: '1'
 name: private_event_sourcing_test
 integrity:
-  network_seed: ~
-  properties: ~
+  network_seed: null
+  properties: null
   origin_time: 1676140846503210
   zomes:
-    - name: private_event_sourcing_integrity
-      hash: ~
-      bundled: "../target/wasm32-unknown-unknown/release/private_event_sourcing_integrity.wasm"
-      dependencies: ~    
-    - name: profiles_integrity
-      hash: ~
-      bundled: <NIX PACKAGE>
-      dependencies: ~
+  - name: example_integrity
+    hash: null
+    bundled: '../target/wasm32-unknown-unknown/release/example_integrity.wasm'
+    dependencies: null
+    dylib: null
 coordinator:
   zomes:
-    - name: private_event_sourcing
-      hash: ~
-      bundled: "../target/wasm32-unknown-unknown/release/private_event_sourcing.wasm"
-      dependencies:
-        - name: private_event_sourcing_integrity    
-    - name: profiles
-      hash: ~
-      bundled: <NIX PACKAGE>
-      dependencies:
-        - name: profiles_integrity
+  - name: example
+    hash: null
+    bundled: '../target/wasm32-unknown-unknown/release/example.wasm'
+    dependencies:
+    - name: example_integrity
+    dylib: null
+lineage: []
