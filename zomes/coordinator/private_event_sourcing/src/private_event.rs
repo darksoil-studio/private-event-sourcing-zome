@@ -18,7 +18,7 @@ pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> {
 fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<PrivateEventEntry> {
     let bytes: SerializedBytes = private_event
         .try_into()
-        .map_err(|err| wasm_error!("Failed to serialize private event: {err:?}"))?;
+        .map_err(|_err| wasm_error!("Failed to serialize private event."))?;
 
     let signed: SignedContent<SerializedBytes> = SignedContent {
         content: bytes,
@@ -36,10 +36,15 @@ fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
     let validation_outcome = private_event.validate(agent_info()?.agent_latest_pubkey)?;
 
-    let ValidateCallbackResult::Valid = validation_outcome else {
-        return Err(wasm_error!(
-            "Validation for private event failed: {validation_outcome:?}"
-        ));
+    match validation_outcome {
+        ValidateCallbackResult::Valid => {}
+        ValidateCallbackResult::Invalid(reason) => Err(wasm_error!(
+            "Validation for private event failed: {}.",
+            reason
+        ))?,
+        ValidateCallbackResult::UnresolvedDependencies(_) => Err(wasm_error!(
+            "Could not create private event because of unresolved dependencies."
+        ))?,
     };
 
     let entry = build_private_event_entry(private_event)?;
