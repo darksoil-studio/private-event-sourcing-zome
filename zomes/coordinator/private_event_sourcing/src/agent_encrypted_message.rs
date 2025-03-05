@@ -4,9 +4,7 @@ use private_event_sourcing_integrity::{
 };
 
 use crate::{
-    private_event::{
-        query_private_event_entries, receive_private_event_from_linked_device, PrivateEvent,
-    },
+    private_event::{query_private_event_entries, receive_private_event, PrivateEvent},
     utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
 };
 
@@ -109,9 +107,7 @@ pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<(
         if let Ok(private_event_entry) = PrivateEventEntry::try_from(decrypted_serialized_bytes) {
             let private_event_entry_hash = hash_entry(&private_event_entry)?;
             if !private_events_entries.contains_key(&private_event_entry_hash.into()) {
-                if let Err(err) =
-                    receive_private_event_from_linked_device::<T>(link.author, private_event_entry)
-                {
+                if let Err(err) = receive_private_event::<T>(link.author, private_event_entry) {
                     error!("Failed to receive private event from an encrypted message: {err:?}.")
                 }
             }

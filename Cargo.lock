@@ -213,6 +213,7 @@ version = "0.0.1"
 dependencies = [
  "example_integrity",
  "hdk",
+ "private_event_sourcing",
  "serde",
 ]
 
@@ -221,6 +222,7 @@ name = "example_integrity"
 version = "0.0.1"
 dependencies = [
  "hdi",
+ "private_event_sourcing_integrity",
  "serde",
 ]
 

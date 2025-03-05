@@ -10,3 +10,5 @@ name = "example_integrity"
 [dependencies]
 hdi = { workspace = true }
 serde = { workspace = true }
+
+private_event_sourcing_integrity = { path = "../private_event_sourcing" }

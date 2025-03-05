@@ -18,7 +18,7 @@ export class PrivateEventSourcingClient extends ZomeClient<PrivateEventSourcingS
 	constructor(
 		public client: AppClient,
 		public roleName: string,
-		public zomeName = 'private_event_sourcing',
+		public zomeName: string,
 	) {
 		super(client, roleName, zomeName);
 	}

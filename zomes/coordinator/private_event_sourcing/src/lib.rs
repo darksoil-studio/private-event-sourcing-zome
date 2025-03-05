@@ -15,6 +15,7 @@ mod synchronize;
 pub use synchronize::synchronize_with_linked_devices;
 mod utils;
 
+#[hdk_extern]
 pub fn init() -> ExternResult<InitCallbackResult> {
     let mut fns: BTreeSet<GrantedFunction> = BTreeSet::new();
     fns.insert((zome_info()?.name, FunctionName::from("recv_remote_signal")));
@@ -70,11 +71,11 @@ pub fn recv_private_events_remote_signal<T: PrivateEvent>(
     let provenance = call_info()?.provenance;
     match signal {
         PrivateEventSourcingRemoteSignal::NewPrivateEvent(private_event_entry) => {
-            receive_private_event_from_linked_device::<T>(provenance, private_event_entry)
+            receive_private_event::<T>(provenance, private_event_entry)
         }
         PrivateEventSourcingRemoteSignal::SynchronizeEntriesWithLinkedDevice(
             private_event_entries,
-        ) => receive_private_events_from_linked_device::<T>(provenance, private_event_entries),
+        ) => receive_private_events::<T>(provenance, private_event_entries),
     }
 }
 
@@ -136,7 +137,9 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
                             (),
                         )?;
                         let ZomeCallResponse::Ok(_) = result else {
-                            return Err(wasm_error!("Error calling 'post_commit_private_event'"));
+                            return Err(wasm_error!(
+                                "Error calling 'attempt_commit_awaiting_deps_entries'"
+                            ));
                         };
                     }
                     _ => {}

@@ -1,29 +1,42 @@
 use example_integrity::*;
 use hdk::prelude::*;
+use private_event_sourcing::*;
 
-// Called the first time a zome call is made to the cell containing this zome
-#[hdk_extern]
-pub fn init() -> ExternResult<InitCallbackResult> {
-    Ok(InitCallbackResult::Pass)
+#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
+pub struct SharedEntry {
+    recipient: AgentPubKey,
+    content: String,
 }
 
-// Don't modify this enum if you want the scaffolding tool to generate appropriate signals for your entries and links
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
-pub enum Signal {}
-
-// Whenever an action is committed, we emit a signal to the UI elements to reactively update them
-#[hdk_extern(infallible)]
-pub fn post_commit(committed_actions: Vec<SignedActionHashed>) {
-    // Don't modify the for loop if you want the scaffolding tool to generate appropriate signals for your entries and links
-    for action in committed_actions {
-        if let Err(err) = signal_action(action) {
-            error!("Error signaling new action: {:?}", err);
-        }
+impl PrivateEvent for SharedEntry {
+    fn validate(&self, author: AgentPubKey) -> ExternResult<ValidateCallbackResult> {
+        Ok(ValidateCallbackResult::Valid)
+    }
+    fn recipients(&self) -> ExternResult<Vec<AgentPubKey>> {
+        Ok(vec![self.recipient.clone()])
     }
 }
 
-// Don't modify this function if you want the scaffolding tool to generate appropriate signals for your entries and links
-fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
+#[hdk_extern]
+pub fn create_private_shared_entry(entry: SharedEntry) -> ExternResult<()> {
+    create_private_event(entry)?;
     Ok(())
+}
+
+#[hdk_extern]
+pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
+    private_event_sourcing::attempt_commit_awaiting_deps_entries::<SharedEntry>()?;
+
+    Ok(())
+}
+
+#[hdk_extern]
+pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
+    if let Ok(private_event_sourcing_remote_signal) =
+        PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
+    {
+        recv_private_events_remote_signal::<SharedEntry>(private_event_sourcing_remote_signal)
+    } else {
+        Ok(())
+    }
 }

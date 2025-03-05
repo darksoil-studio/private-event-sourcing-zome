@@ -66,6 +66,7 @@ pub fn send_private_event_to_new_recipients(
     };
 
     // Send to recipients
+    info!("Sending private event entry to recipients: {recipients:?}.");
 
     send_remote_signal(
         SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
@@ -110,13 +111,13 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     private_event.validate(private_event_entry.0.author.clone())
 }
 
-pub fn receive_private_event_from_linked_device<T: PrivateEvent>(
+pub fn receive_private_event<T: PrivateEvent>(
     provenance: AgentPubKey,
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<()> {
     debug!("[receive_private_event_from_linked_device/start]");
 
-    check_is_linked_device(provenance)?;
+    // check_is_linked_device(provenance)?;
 
     let outcome = validate_private_event_entry::<T>(&private_event_entry)?;
 
@@ -138,11 +139,12 @@ pub fn receive_private_event_from_linked_device<T: PrivateEvent>(
     Ok(())
 }
 
-pub fn receive_private_events_from_linked_device<T: PrivateEvent>(
+pub fn receive_private_events<T: PrivateEvent>(
     provenance: AgentPubKey,
     private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
 ) -> ExternResult<()> {
-    check_is_linked_device(provenance)?;
+    // check_is_linked_device(provenance)?;
+
     let my_private_event_entries = query_private_event_entries(())?;
 
     let mut ordered_their_private_messenger_entries: Vec<(EntryHashB64, PrivateEventEntry)> =
@@ -230,6 +232,7 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     }
 
     // Send to recipients
+    info!("Sending private event entry to recipients: {recipients:?}.");
 
     send_remote_signal(
         SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(

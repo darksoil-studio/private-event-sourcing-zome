@@ -11,3 +11,4 @@ name = "example"
 hdk = { workspace = true }
 serde = { workspace = true }
 example_integrity = { workspace = true }
+private_event_sourcing = { path = "../private_event_sourcing" }
