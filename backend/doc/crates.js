@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["example","example_integrity","private_event_sourcing","private_event_sourcing_integrity"];
