@@ -5,27 +5,35 @@ pub fn call_local_zome<P, R>(
     zome_name: ZomeName,
     fn_name: FunctionName,
     payload: P,
-) -> ExternResult<R>
+) -> ExternResult<Option<R>>
 where
     P: serde::Serialize + std::fmt::Debug,
     R: DeserializeOwned + std::fmt::Debug,
 {
-    let response = call(
+    let call_result = call(
         CallTargetCell::Local,
         zome_name.clone(),
         fn_name.clone(),
         None,
         payload,
-    )?;
+    );
 
-    match response {
-        ZomeCallResponse::Ok(result) => {
-            let result: R = result.decode().map_err(|err| wasm_error!(err))?;
-            Ok(result)
+    match call_result {
+        Ok(response) => match response {
+            ZomeCallResponse::Ok(result) => {
+                let result: R = result.decode().map_err(|err| wasm_error!(err))?;
+                Ok(Some(result))
+            }
+            _ => Err(wasm_error!(WasmErrorInner::Guest(format!(
+                "Failed to call {zome_name}/{fn_name}: {response:?}"
+            )))),
+        },
+        Err(err) => {
+            if format!("{err:?}").contains("Zome not found") {
+                return Ok(None);
+            }
+            return Err(err);
         }
-        _ => Err(wasm_error!(WasmErrorInner::Guest(format!(
-            "Failed to call {zome_name}/{fn_name}: {response:?}"
-        )))),
     }
 }
 
@@ -40,7 +48,7 @@ pub fn get_linked_devices_for(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKe
     let Some(zome_name) = linked_devices_zome_name() else {
         return Ok(Vec::new());
     };
-    let Ok(links): ExternResult<Vec<Link>> =
+    let Some(links): Option<Vec<Link>> =
         call_local_zome(zome_name, "get_linked_devices_for_agent".into(), agent)?
     else {
         return Ok(vec![]);
@@ -70,7 +78,7 @@ pub fn query_my_linked_devices() -> ExternResult<Vec<AgentPubKey>> {
     let Some(zome_name) = linked_devices_zome_name() else {
         return Ok(Vec::new());
     };
-    let Ok(links): ExternResult<Vec<Link>> =
+    let Some(links): Option<Vec<Link>> =
         call_local_zome(zome_name, "query_my_linked_devices".into(), ())?
     else {
         return Ok(vec![]);
