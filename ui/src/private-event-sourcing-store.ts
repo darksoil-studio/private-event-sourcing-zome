@@ -12,7 +12,7 @@ export class PrivateEventSourcingStore<E> {
 	privateEventEntries = asyncReadable<Record<EntryHashB64, PrivateEventEntry>>(
 		async set => {
 			const entries = await this.client.queryPrivateEventEntries();
-			set(entries);
+			set(entries ? entries : {});
 
 			return this.client.onSignal(signal => {
 				if (signal.type !== 'EntryCreated') return;
