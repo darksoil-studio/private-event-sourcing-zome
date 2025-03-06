@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "locales/locales.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "sourceLocale",
+          "default": "`en`",
+          "description": "The locale code that templates in this source code are written in."
+        },
+        {
+          "kind": "variable",
+          "name": "targetLocales",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ , ]",
+          "description": "The other locale codes that this application is localized into. Sorted\nlexicographically."
+        },
+        {
+          "kind": "variable",
+          "name": "allLocales",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ `en`, ]",
+          "description": "All valid project locale codes. Sorted lexicographically."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "sourceLocale",
+          "declaration": {
+            "name": "sourceLocale",
+            "module": "locales/locales.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "targetLocales",
+          "declaration": {
+            "name": "targetLocales",
+            "module": "locales/locales.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "allLocales",
+          "declaration": {
+            "name": "allLocales",
+            "module": "locales/locales.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/index.ts",
+      "declarations": [],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "*",
+          "declaration": {
+            "name": "*",
+            "package": "./private-event-sourcing-store.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "*",
+          "declaration": {
+            "name": "*",
+            "package": "./private-event-sourcing-client.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "*",
+          "declaration": {
+            "name": "*",
+            "package": "./types.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/mocks.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "PrivateEventSourcingZomeMock",
+          "superclass": {
+            "name": "ZomeMock",
+            "package": "@tnesh-stack/utils"
+          }
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "PrivateEventSourcingZomeMock",
+          "declaration": {
+            "name": "PrivateEventSourcingZomeMock",
+            "module": "src/mocks.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/private-event-sourcing-client.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "PrivateEventSourcingClient",
+          "members": [
+            {
+              "kind": "method",
+              "name": "queryPrivateEventEntries",
+              "return": {
+                "type": {
+                  "text": "Promise<Record<EntryHashB64, PrivateEventEntry>>"
+                }
+              }
+            }
+          ],
+          "superclass": {
+            "name": "ZomeClient",
+            "package": "@tnesh-stack/utils"
+          }
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "PrivateEventSourcingClient",
+          "declaration": {
+            "name": "PrivateEventSourcingClient",
+            "module": "src/private-event-sourcing-client.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/private-event-sourcing-store.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "PrivateEventSourcingStore",
+          "members": [
+            {
+              "kind": "field",
+              "name": "privateEventEntries"
+            },
+            {
+              "kind": "field",
+              "name": "privateEvents",
+              "default": "new AsyncComputed(() => { const privateEventEntries = this.privateEventEntries.get(); if (privateEventEntries.status !== 'completed') return privateEventEntries; const privateEvents: Record<EntryHashB64, SignedEvent<E>> = {}; for (const [entryHash, privateEventEntry] of Object.entries( privateEventEntries.value, )) { privateEvents[entryHash] = { ...privateEventEntry, event: { timestamp: privateEventEntry.event.timestamp, content: decode(privateEventEntry.event.content) as E, }, }; } return { status: 'completed', value: privateEvents, }; })"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "PrivateEventSourcingStore",
+          "declaration": {
+            "name": "PrivateEventSourcingStore",
+            "module": "src/private-event-sourcing-store.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/types.ts",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/utils.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "asyncReadable",
+          "parameters": [
+            {
+              "name": "initFn",
+              "type": {
+                "text": "(set: (value: T) => void) => Promise<(() => void) | void>"
+              }
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "asyncReadable",
+          "declaration": {
+            "name": "asyncReadable",
+            "module": "src/utils.ts"
+          }
+        }
+      ]
+    }
+  ]
+}
