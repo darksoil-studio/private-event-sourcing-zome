@@ -13,7 +13,7 @@ import {
 	fakeDnaHash,
 	fakeEntryHash,
 } from '@holochain/client';
-import { Player, Scenario, dhtSync } from '@holochain/tryorama';
+import { Player, Scenario, dhtSync, pause } from '@holochain/tryorama';
 import { encode } from '@msgpack/msgpack';
 import { EntryRecord } from '@tnesh-stack/utils';
 import { dirname } from 'path';
