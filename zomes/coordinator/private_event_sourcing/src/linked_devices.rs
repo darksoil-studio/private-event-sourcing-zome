@@ -29,15 +29,25 @@ where
     }
 }
 
-pub fn linked_devices_zome_name() -> Option<ZomeName> {
+pub fn linked_devices_zome_name() -> ExternResult<Option<ZomeName>> {
     match std::option_env!("LINKED_DEVICES_COORDINATOR_ZOME_NAME") {
-        Some(zome_name) => Some(zome_name.into()),
-        None => None,
+        Some(zome_name) => {
+            let dna_info = dna_info()?;
+            let zome_exists = dna_info
+                .zome_names
+                .contains(&ZomeName::from(zome_name.to_string()));
+
+            match zome_exists {
+                true => Ok(Some(zome_name.into())),
+                false => Ok(None),
+            }
+        }
+        None => Ok(None),
     }
 }
 
 pub fn get_linked_devices_for(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKey>> {
-    let Some(zome_name) = linked_devices_zome_name() else {
+    let Some(zome_name) = linked_devices_zome_name()? else {
         return Ok(Vec::new());
     };
     let links: Vec<Link> =
@@ -64,7 +74,7 @@ pub fn query_all_my_agents() -> ExternResult<Vec<AgentPubKey>> {
 }
 
 pub fn query_my_linked_devices() -> ExternResult<Vec<AgentPubKey>> {
-    let Some(zome_name) = linked_devices_zome_name() else {
+    let Some(zome_name) = linked_devices_zome_name()? else {
         return Ok(Vec::new());
     };
     let links: Vec<Link> = call_local_zome(zome_name, "query_my_linked_devices".into(), ())?;
