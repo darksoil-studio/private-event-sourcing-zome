@@ -115,9 +115,6 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
     EncryptedMessage, EntryTypes, LinkTypes, PrivateEventEntry,
@@ -133,6 +130,7 @@
 
 <span class="kw">pub fn </span>create_encrypted_message(
     recipient: AgentPubKey,
+    private_event_entry_hash: EntryHash,
     entry: PrivateEventEntry,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>entry_bytes = SerializedBytes::try_from(entry).map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
@@ -146,22 +144,22 @@
         .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
 
     <span class="kw">if </span>bytes.bytes().len() &gt; <span class="number">900 </span>{
-        <span class="kw">let </span>entry = EncryptedMessage {
-            recipient: recipient.clone(),
-            content: bytes,
-        };
+        <span class="kw">let </span>entry = EncryptedMessage(bytes);
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>entry)<span class="question-mark">?</span>;
         create_relaxed(EntryTypes::EncryptedMessage(entry))<span class="question-mark">?</span>;
         create_link_relaxed(
             recipient.clone(),
-            entry_hash,
+            private_event_entry_hash,
             LinkTypes::AgentEncryptedMessage,
-            (),
+            SerializedBytes::try_from(entry_hash)
+                .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?
+                </span>.bytes()
+                .clone(),
         )<span class="question-mark">?</span>;
     } <span class="kw">else </span>{
         create_link_relaxed(
             recipient.clone(),
-            recipient,
+            private_event_entry_hash,
             LinkTypes::AgentEncryptedMessage,
             bytes.bytes().clone(),
         )<span class="question-mark">?</span>;
@@ -170,41 +168,37 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>get_message(agent_encrypted_message_link: <span class="kw-2">&amp;</span>Link) -&gt; ExternResult&lt;<span class="prelude-ty">Option</span>&lt;SerializedBytes&gt;&gt; {
-    <span class="kw">if </span>agent_encrypted_message_link
-        .base
-        .eq(<span class="kw-2">&amp;</span>agent_encrypted_message_link.target)
-    {
-        <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
-        <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(bytes))
-    } <span class="kw">else </span>{
-        <span class="kw">let </span><span class="prelude-val">Some</span>(entry_hash) = agent_encrypted_message_link
-            .target
-            .clone()
-            .into_entry_hash()
-        <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
-                <span class="string">"AgentToEncryptedMessage link does not have an entry hash as its target"
-            </span>));
-        };
-        <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(entry_hash, GetOptions::default())<span class="question-mark">? </span><span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-        };
+<span class="kw">pub fn </span>get_agent_encrypted_messages(agent: AgentPubKey) -&gt; ExternResult&lt;Vec&lt;Link&gt;&gt; {
+    get_links(GetLinksInputBuilder::try_new(agent, LinkTypes::AgentEncryptedMessage)<span class="question-mark">?</span>.build())
+}
 
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message)) = record.entry().to_app_option::&lt;EncryptedMessage&gt;() <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid EncryptedMessage target"</span>));
-        };
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message.content))
+<span class="kw">fn </span>get_message(agent_encrypted_message_link: <span class="kw-2">&amp;</span>Link) -&gt; ExternResult&lt;<span class="prelude-ty">Option</span>&lt;SerializedBytes&gt;&gt; {
+    <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
+    <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
+
+    <span class="kw">match </span>EntryHash::try_from(bytes) {
+        <span class="prelude-val">Ok</span>(entry_hash) =&gt; {
+            <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(entry_hash, GetOptions::default())<span class="question-mark">? </span><span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+            };
+
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message)) = record.entry().to_app_option::&lt;EncryptedMessage&gt;()
+            <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid EncryptedMessage target"</span>));
+            };
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message.<span class="number">0</span>))
+        }
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+            <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
+            <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(bytes))
+        }
     }
 }
 
 <span class="kw">pub fn </span>commit_my_pending_encrypted_messages&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_latest_pubkey;
-    <span class="kw">let </span>links = get_links(
-        GetLinksInputBuilder::try_new(my_pub_key.clone(), LinkTypes::AgentEncryptedMessage)<span class="question-mark">?
-            </span>.build(),
-    )<span class="question-mark">?</span>;
+    <span class="kw">let </span>links = get_agent_encrypted_messages(my_pub_key.clone())<span class="question-mark">?</span>;
 
     <span class="kw">let </span>private_events_entries = query_private_event_entries(())<span class="question-mark">?</span>;
 

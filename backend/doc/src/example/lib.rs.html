@@ -60,17 +60,54 @@
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>example_integrity::<span class="kw-2">*</span>;
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing::<span class="kw-2">*</span>;
 
-<span class="attr">#[derive(Serialize, Deserialize, Debug, SerializedBytes, Clone)]
-</span><span class="kw">pub struct </span>SharedEntry {
-    recipient: AgentPubKey,
-    content: String,
+<span class="attr">#[private_event]
+#[serde(tag = <span class="string">"type"</span>)]
+</span><span class="kw">pub enum </span>Event {
+    SharedEntry {
+        recipient: AgentPubKey,
+        content: String,
+    },
+    NewFriend {
+        friend: AgentPubKey,
+    },
 }
 
-<span class="kw">impl </span>PrivateEvent <span class="kw">for </span>SharedEntry {
+<span class="kw">impl </span>PrivateEvent <span class="kw">for </span>Event {
     <span class="kw">fn </span>validate(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         author: AgentPubKey,
@@ -78,24 +115,54 @@
     ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
         <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
     }
+
     <span class="kw">fn </span>recipients(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -&gt; ExternResult&lt;Vec&lt;AgentPubKey&gt;&gt; {
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.recipient.clone()])
+        <span class="kw">match </span><span class="self">self </span>{
+            Event::SharedEntry { recipient, .. } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>recipients = query_friends()<span class="question-mark">?</span>;
+                recipients.insert(recipient.clone());
+
+                <span class="prelude-val">Ok</span>(recipients.into_iter().collect())
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[]),
+        }
     }
 }
 
 <span class="attr">#[hdk_extern]
-</span><span class="kw">pub fn </span>create_private_shared_entry(entry: SharedEntry) -&gt; ExternResult&lt;()&gt; {
+</span><span class="kw">pub fn </span>create_private_shared_entry(entry: Event) -&gt; ExternResult&lt;()&gt; {
     create_private_event(entry)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
 <span class="attr">#[hdk_extern]
+</span><span class="kw">pub fn </span>add_friend(friend: AgentPubKey) -&gt; ExternResult&lt;()&gt; {
+    create_private_event(Event::NewFriend { friend })<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub fn </span>query_friends() -&gt; ExternResult&lt;BTreeSet&lt;AgentPubKey&gt;&gt; {
+    <span class="kw">let </span>private_events = query_private_events::&lt;Event&gt;()<span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>friends: BTreeSet&lt;AgentPubKey&gt; = BTreeSet::new();
+
+    <span class="kw">for </span>(_hash, private_event) <span class="kw">in </span>private_events {
+        <span class="kw">let </span>Event::NewFriend { friend } = private_event.event.content <span class="kw">else </span>{
+            <span class="kw">continue</span>;
+        };
+        friends.insert(friend);
+    }
+
+    <span class="prelude-val">Ok</span>(friends)
+}
+
+<span class="attr">#[hdk_extern]
 </span><span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries() -&gt; ExternResult&lt;()&gt; {
-    private_event_sourcing::attempt_commit_awaiting_deps_entries::&lt;SharedEntry&gt;()<span class="question-mark">?</span>;
+    private_event_sourcing::attempt_commit_awaiting_deps_entries::&lt;Event&gt;()<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(())
 }
@@ -105,19 +172,16 @@
     <span class="kw">if let </span><span class="prelude-val">Ok</span>(private_event_sourcing_remote_signal) =
         PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
     {
-        recv_private_events_remote_signal::&lt;SharedEntry&gt;(private_event_sourcing_remote_signal)
+        recv_private_events_remote_signal::&lt;Event&gt;(private_event_sourcing_remote_signal)
     } <span class="kw">else </span>{
         <span class="prelude-val">Ok</span>(())
     }
 }
 
 <span class="attr">#[hdk_extern(infallible)]
-</span><span class="kw">fn </span>scheduled_synchronize_with_linked_devices(<span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;Schedule&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Schedule&gt; {
-    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = commit_my_pending_encrypted_messages::&lt;SharedEntry&gt;() {
-        <span class="macro">error!</span>(<span class="string">"Failed to commit my encrypted messages: {err:?}"</span>);
-    }
-    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = synchronize_with_linked_devices(()) {
-        <span class="macro">error!</span>(<span class="string">"Failed to synchronize with other agents: {err:?}"</span>);
+</span><span class="kw">fn </span>scheduled_tasks(<span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;Schedule&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Schedule&gt; {
+    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = private_event_sourcing::scheduled_tasks::&lt;Event&gt;() {
+        <span class="macro">error!</span>(<span class="string">"Failed to perform scheduled tasks: {err:?}"</span>);
     }
 
     <span class="prelude-val">Some</span>(Schedule::Persisted(<span class="string">"*/30 * * * * * *"</span>.into())) <span class="comment">// Every 30 seconds

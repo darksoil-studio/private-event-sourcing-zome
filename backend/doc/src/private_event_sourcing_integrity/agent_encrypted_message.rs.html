@@ -81,30 +81,11 @@
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>hdi::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[hdk_entry_helper]
 #[derive(Clone)]
-</span><span class="kw">pub struct </span>EncryptedMessage {
-    <span class="kw">pub </span>recipient: AgentPubKey,
-    <span class="kw">pub </span>content: SerializedBytes,
-}
+</span><span class="kw">pub struct </span>EncryptedMessage(<span class="kw">pub </span>SerializedBytes);
 
 <span class="kw">pub fn </span>validate_create_encrypted_message(
     _action: EntryCreationAction,
@@ -117,22 +98,13 @@
     _encrypted_message: EncryptedMessage,
 ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
     <span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
-        <span class="string">"PrivateMessengerEntries cannot be updated"
+        <span class="string">"EncryptedMessages cannot be updated"
     </span>)))
 }
-<span class="kw">pub fn </span>validate_delete_encrypted_message(action: Delete) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
-    <span class="kw">let </span>entry = must_get_entry(action.deletes_entry_address.clone())<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="prelude-val">Ok</span>(message) = EncryptedMessage::try_from(entry.content) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
-            <span class="string">"Linked action must reference an entry of type EncryptedMessage"</span>.to_string(),
-        ));
-    };
-    <span class="kw">if </span>message.recipient.ne(<span class="kw-2">&amp;</span>action.author) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
-            <span class="string">"Only recipient for an EncryptedMessage can delete them"</span>.to_string(),
-        ));
-    }
-    <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
+<span class="kw">pub fn </span>validate_delete_encrypted_message(_action: Delete) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
+    <span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
+        <span class="string">"EncryptedMessages cannot be deleted"
+    </span>)))
 }
 
 <span class="kw">pub fn </span>validate_create_link_agent_encrypted_message(
@@ -142,35 +114,31 @@
     _tag: LinkTag,
 ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
     <span class="comment">// Check the entry type for the given action hash
-    </span><span class="kw">let </span><span class="prelude-val">Some</span>(agent) = base_address.clone().into_agent_pub_key() <span class="kw">else </span>{
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(_agent) = base_address.clone().into_agent_pub_key() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
             <span class="string">"Base of an AgentEncryptedMessage link must be a profile ActionHash"
         </span>)));
     };
 
-    <span class="kw">if </span>base_address.eq(<span class="kw-2">&amp;</span>target_address) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid);
-    }
-
     <span class="comment">// Check the entry type for the given action hash
-    </span><span class="kw">let </span><span class="prelude-val">Some</span>(encrypted_message_hash) = target_address.into_entry_hash() <span class="kw">else </span>{
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(_encrypted_message_hash) = target_address.into_entry_hash() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
             <span class="string">"No action hash associated with link"</span>.to_string(),
         ));
     };
-    <span class="kw">let </span>entry = must_get_entry(encrypted_message_hash.clone())<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="prelude-val">Ok</span>(message) = EncryptedMessage::try_from(entry.content) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
-            <span class="string">"Linked action must reference an entry of type EncryptedMessage"</span>.to_string(),
-        ));
-    };
-    <span class="kw">if </span>message.recipient.ne(<span class="kw-2">&amp;</span>agent) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
-            <span class="string">"Recipient for an EncryptedMessage must be the base address of an AgentToEncryptedMessage entry"</span>.to_string(),
-        ));
-    }
+    <span class="comment">// let entry = must_get_entry(encrypted_message_hash.clone())?;
+    // let Ok(message) = EncryptedMessage::try_from(entry.content) else {
+    //     return Ok(ValidateCallbackResult::Invalid(
+    //         "Linked action must reference an entry of type EncryptedMessage".to_string(),
+    //     ));
+    // };
+    // if message.recipient.ne(&amp;agent) {
+    //     return Ok(ValidateCallbackResult::Invalid(
+    //         "Recipient for an EncryptedMessage must be the base address of an AgentToEncryptedMessage entry".to_string(),
+    //     ));
+    // }
 
-    <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
+    </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
 }
 
 <span class="kw">pub fn </span>validate_delete_link_agent_encrypted_message(

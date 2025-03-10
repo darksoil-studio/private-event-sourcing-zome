@@ -347,6 +347,79 @@
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -356,7 +429,11 @@
     utils::create_relaxed, PrivateEventSourcingRemoteSignal, Signal,
 };
 
-<span class="kw">pub trait </span>PrivateEvent: TryFrom&lt;SerializedBytes&gt; + TryInto&lt;SerializedBytes&gt; + Clone {
+<span class="kw">pub trait </span>EventType {
+    <span class="kw">fn </span>event_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String;
+}
+
+<span class="kw">pub trait </span>PrivateEvent: EventType + TryFrom&lt;SerializedBytes&gt; + TryInto&lt;SerializedBytes&gt; {
     <span class="doccomment">/// Whether the given entry is to be accepted in to our source chain
     </span><span class="kw">fn </span>validate(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -377,14 +454,19 @@
     }
 }
 
-<span class="kw">fn </span>build_private_event_entry&lt;T: PrivateEvent&gt;(private_event: T) -&gt; ExternResult&lt;PrivateEventEntry&gt; {
+<span class="kw">fn </span>build_private_event_entry&lt;T: PrivateEvent&gt;(
+    private_event: T,
+    timestamp: Timestamp,
+) -&gt; ExternResult&lt;PrivateEventEntry&gt; {
+    <span class="kw">let </span>event_type = private_event.event_type();
     <span class="kw">let </span>bytes: SerializedBytes = private_event
         .try_into()
         .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to serialize private event."</span>))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>signed: SignedContent&lt;SerializedBytes&gt; = SignedContent {
         content: bytes,
-        timestamp: sys_time()<span class="question-mark">?</span>,
+        timestamp,
+        event_type,
     };
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_latest_pubkey;
     <span class="kw">let </span>signature = sign(my_pub_key.clone(), <span class="kw-2">&amp;</span>signed)<span class="question-mark">?</span>;
@@ -396,9 +478,10 @@
 }
 
 <span class="kw">pub fn </span>create_private_event&lt;T: PrivateEvent&gt;(private_event: T) -&gt; ExternResult&lt;EntryHash&gt; {
-    <span class="kw">let </span>entry = build_private_event_entry(private_event.clone())<span class="question-mark">?</span>;
+    <span class="kw">let </span>timestamp = sys_time()<span class="question-mark">?</span>;
     <span class="kw">let </span>validation_outcome =
-        private_event.validate(agent_info()<span class="question-mark">?</span>.agent_latest_pubkey, entry.<span class="number">0</span>.event.timestamp)<span class="question-mark">?</span>;
+        private_event.validate(agent_info()<span class="question-mark">?</span>.agent_latest_pubkey, timestamp.clone())<span class="question-mark">?</span>;
+    <span class="kw">let </span>entry = build_private_event_entry(private_event, timestamp)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>validation_outcome {
         ValidateCallbackResult::Valid =&gt; {}
@@ -410,22 +493,35 @@
             <span class="string">"Could not create private event because of unresolved dependencies."
         </span>))<span class="question-mark">?</span>,
     };
-    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>entry)<span class="question-mark">?</span>;
 
-    internal_create_private_event::&lt;T&gt;(entry)<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(entry_hash)
+    internal_create_private_event::&lt;T&gt;(entry)
 }
 
-<span class="kw">pub fn </span>send_private_event_to_new_recipients(
-    event_hash: EntryHash,
-    recipients: Vec&lt;AgentPubKey&gt;,
+<span class="kw">pub fn </span>send_private_events_to_new_recipients&lt;T: PrivateEvent&gt;(
+    events_hashes: Vec&lt;EntryHash&gt;,
 ) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span><span class="prelude-val">Some</span>(private_event_entry) = query_private_event_entry(event_hash)<span class="question-mark">? </span><span class="kw">else </span>{
+    <span class="kw">for </span>event_hash <span class="kw">in </span>events_hashes {
+        send_private_event_to_new_recipients::&lt;T&gt;(event_hash)<span class="question-mark">?</span>;
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>send_private_event_to_new_recipients&lt;T: PrivateEvent&gt;(
+    event_hash: EntryHash,
+) -&gt; ExternResult&lt;()&gt; {
+    <span class="kw">let </span><span class="prelude-val">Some</span>(private_event_entry) = query_private_event_entry(event_hash.clone())<span class="question-mark">? </span><span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
             <span class="string">"PrivateEventEntry with hash {event_hash} not found."
         </span>));
     };
+
+    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>recipients = private_event.recipients(
+        private_event_entry.<span class="number">0</span>.author.clone(),
+        private_event_entry.<span class="number">0</span>.event.timestamp,
+    )<span class="question-mark">?</span>;
 
     <span class="comment">// Send to recipients
     </span><span class="macro">info!</span>(<span class="string">"Sending private event entry to new recipients: {recipients:?}."</span>);
@@ -438,18 +534,9 @@
         recipients.clone(),
     )<span class="question-mark">?</span>;
     <span class="kw">for </span>recipient <span class="kw">in </span>recipients {
-        create_encrypted_message(recipient, private_event_entry.clone())<span class="question-mark">?</span>;
+        create_encrypted_message(recipient, event_hash.clone(), private_event_entry.clone())<span class="question-mark">?</span>;
     }
     <span class="prelude-val">Ok</span>(())
-}
-
-<span class="kw">fn </span>check_is_linked_device(agent: AgentPubKey) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>my_devices = query_my_linked_devices()<span class="question-mark">?</span>;
-    <span class="kw">if </span>my_devices.contains(<span class="kw-2">&amp;</span>agent) {
-        <span class="prelude-val">Ok</span>(())
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Given agent is not a linked device."</span>))
-    }
 }
 
 <span class="kw">pub fn </span>validate_private_event_entry&lt;T: PrivateEvent&gt;(
@@ -468,7 +555,18 @@
     }
 
     <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event: {err:?}."</span>))<span class="question-mark">?</span>;
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>private_event
+        .event_type()
+        .ne(<span class="kw-2">&amp;</span>private_event_entry.<span class="number">0</span>.event.event_type)
+    {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
+            <span class="string">"Invalid event type: expected '{}', but got '{}'."</span>,
+            private_event_entry.<span class="number">0</span>.event.event_type,
+            private_event.event_type()
+        )));
+    }
 
     private_event.validate(
         private_event_entry.<span class="number">0</span>.author.clone(),
@@ -547,7 +645,8 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>internal_create_private_event&lt;T: PrivateEvent&gt;(
     private_event_entry: PrivateEventEntry,
-) -&gt; ExternResult&lt;()&gt; {
+) -&gt; ExternResult&lt;EntryHash&gt; {
+    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
     <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
     <span class="kw">let </span>action_hash = create_relaxed(app_entry.clone())<span class="question-mark">?</span>;
     <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(action_hash, GetOptions::local())<span class="question-mark">? </span><span class="kw">else </span>{
@@ -559,19 +658,23 @@
         action: record.signed_action,
         app_entry: app_entry.clone(),
     })<span class="question-mark">?</span>;
-    send_private_event_to_linked_devices_and_recipients::&lt;T&gt;(private_event_entry.clone())<span class="question-mark">?</span>;
+    send_private_event_to_linked_devices_and_recipients::&lt;T&gt;(
+        entry_hash.clone(),
+        private_event_entry.clone(),
+    )<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content)
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event: {err:?}."</span>))<span class="question-mark">?</span>;
+    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
     private_event.post_commit(
         private_event_entry.<span class="number">0</span>.author,
         private_event_entry.<span class="number">0</span>.event.timestamp,
     )<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(())
+    <span class="prelude-val">Ok</span>(entry_hash)
 }
 
-<span class="kw">pub fn </span>send_private_event_to_linked_devices_and_recipients&lt;T: PrivateEvent&gt;(
+<span class="kw">fn </span>send_private_event_to_linked_devices_and_recipients&lt;T: PrivateEvent&gt;(
+    entry_hash: EntryHash,
     private_event_entry: PrivateEventEntry,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_latest_pubkey;
@@ -584,7 +687,7 @@
     <span class="kw">let </span>my_linked_devices = query_my_linked_devices()<span class="question-mark">?</span>;
 
     <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event: {err:?}."</span>))<span class="question-mark">?</span>;
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>recipients = private_event.recipients(
         private_event_entry.<span class="number">0</span>.author.clone(),
@@ -600,7 +703,11 @@
     )<span class="question-mark">?</span>;
 
     <span class="kw">for </span>linked_device <span class="kw">in </span>my_linked_devices {
-        create_encrypted_message(linked_device, private_event_entry.clone())<span class="question-mark">?</span>;
+        create_encrypted_message(
+            linked_device,
+            entry_hash.clone(),
+            private_event_entry.clone(),
+        )<span class="question-mark">?</span>;
     }
 
     <span class="comment">// Send to recipients
@@ -614,10 +721,39 @@
         recipients.clone(),
     )<span class="question-mark">?</span>;
     <span class="kw">for </span>recipient <span class="kw">in </span>recipients {
-        create_encrypted_message(recipient, private_event_entry.clone())<span class="question-mark">?</span>;
+        create_encrypted_message(recipient, entry_hash.clone(), private_event_entry.clone())<span class="question-mark">?</span>;
     }
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub fn </span>query_private_event_entries_by_type(
+    event_type: <span class="kw-2">&amp;</span>String,
+) -&gt; ExternResult&lt;BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;&gt; {
+    <span class="kw">let </span>all_entries = query_private_event_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>entries_of_this_type = all_entries
+        .into_iter()
+        .filter(|(_hash, entry)| entry.<span class="number">0</span>.event.event_type.eq(event_type))
+        .collect();
+    <span class="prelude-val">Ok</span>(entries_of_this_type)
+}
+
+<span class="kw">pub fn </span>query_private_events_by_type&lt;T: PrivateEvent&gt;(
+    event_type: <span class="kw-2">&amp;</span>String,
+) -&gt; ExternResult&lt;BTreeMap&lt;EntryHashB64, SignedEvent&lt;T&gt;&gt;&gt; {
+    <span class="kw">let </span>private_events_entries = query_private_event_entries_by_type(event_type)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>private_events = private_events_entries
+        .into_iter()
+        .filter_map(|(entry_hash, entry)| {
+            private_event_entry_to_signed_event(entry)
+                .ok()
+                .map(|e| (entry_hash, e))
+        })
+        .collect();
+
+    <span class="prelude-val">Ok</span>(private_events)
 }
 
 <span class="kw">pub fn </span>query_private_events&lt;T: PrivateEvent&gt;(
@@ -672,15 +808,16 @@
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(entry))
 }
 
-<span class="kw">fn </span>private_event_entry_to_signed_event&lt;T: PrivateEvent&gt;(
+<span class="kw">pub fn </span>private_event_entry_to_signed_event&lt;T: PrivateEvent&gt;(
     private_event_entry: PrivateEventEntry,
 ) -&gt; ExternResult&lt;SignedEvent&lt;T&gt;&gt; {
     <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content)
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event: {err:?}."</span>))<span class="question-mark">?</span>;
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(SignedEvent {
         author: private_event_entry.<span class="number">0</span>.author,
         signature: private_event_entry.<span class="number">0</span>.signature,
         event: SignedContent {
+            event_type: private_event_entry.<span class="number">0</span>.event.event_type,
             timestamp: private_event_entry.<span class="number">0</span>.event.timestamp,
             content: private_event,
         },
@@ -695,5 +832,14 @@
     };
     <span class="kw">let </span>signed_event = private_event_entry_to_signed_event(private_event_entry)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(signed_event))
+}
+
+<span class="kw">fn </span>check_is_linked_device(agent: AgentPubKey) -&gt; ExternResult&lt;()&gt; {
+    <span class="kw">let </span>my_devices = query_my_linked_devices()<span class="question-mark">?</span>;
+    <span class="kw">if </span>my_devices.contains(<span class="kw-2">&amp;</span>agent) {
+        <span class="prelude-val">Ok</span>(())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Given agent is not a linked device."</span>))
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -199,6 +199,18 @@
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
 <a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
@@ -216,6 +228,18 @@
 <span class="kw">pub use </span>synchronize::synchronize_with_linked_devices;
 <span class="kw">mod </span>utils;
 
+<span class="kw">pub use </span>strum::IntoStaticStr;
+
+<span class="kw">pub use </span>private_event_proc_macro::<span class="kw-2">*</span>;
+<span class="kw">use </span>synchronize::syncronize_with_recipients;
+
+<span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
+    commit_my_pending_encrypted_messages::&lt;T&gt;()<span class="question-mark">?</span>;
+    synchronize_with_linked_devices()<span class="question-mark">?</span>;
+    syncronize_with_recipients::&lt;T&gt;()<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}
+
 <span class="attr">#[hdk_extern]
 </span><span class="kw">pub fn </span>init() -&gt; ExternResult&lt;InitCallbackResult&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>fns: BTreeSet&lt;GrantedFunction&gt; = BTreeSet::new();
@@ -228,7 +252,7 @@
     };
     create_cap_grant(cap_grant)<span class="question-mark">?</span>;
 
-    schedule(<span class="string">"scheduled_synchronize_with_linked_devices"</span>)<span class="question-mark">?</span>;
+    schedule(<span class="string">"scheduled_tasks"</span>)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(InitCallbackResult::Pass)
 }
