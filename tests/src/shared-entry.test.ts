@@ -13,6 +13,7 @@ test('create a shared entry gets to each source chain', async () => {
 			zome_name: 'example',
 			fn_name: 'create_private_shared_entry',
 			payload: {
+				type: 'SharedEntry',
 				recipient: bob.player.agentPubKey,
 				content: 'hello',
 			},
@@ -39,6 +40,7 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 			zome_name: 'example',
 			fn_name: 'create_private_shared_entry',
 			payload: {
+				type: 'SharedEntry',
 				recipient: bob.player.agentPubKey,
 				content: 'hello',
 			},

@@ -15,6 +15,10 @@ mod synchronize;
 pub use synchronize::synchronize_with_linked_devices;
 mod utils;
 
+pub use strum::IntoStaticStr;
+
+pub use private_event_proc_macro::*;
+
 #[hdk_extern]
 pub fn init() -> ExternResult<InitCallbackResult> {
     let mut fns: BTreeSet<GrantedFunction> = BTreeSet::new();

@@ -7,7 +7,11 @@ use crate::{
     utils::create_relaxed, PrivateEventSourcingRemoteSignal, Signal,
 };
 
-pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> + Clone {
+pub trait EventType {
+    fn event_type(&self) -> String;
+}
+
+pub trait PrivateEvent: EventType + TryFrom<SerializedBytes> + TryInto<SerializedBytes> {
     /// Whether the given entry is to be accepted in to our source chain
     fn validate(
         &self,
@@ -22,34 +26,40 @@ pub trait PrivateEvent: TryFrom<SerializedBytes> + TryInto<SerializedBytes> + Cl
         timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>>;
 
-    /// Code to run after an event has been committed
-    fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
-        Ok(())
-    }
+    // /// Code to run after an event has been committed
+    // fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
+    //     Ok(())
+    // }
 }
 
-fn build_private_event_entry<T: PrivateEvent>(private_event: T) -> ExternResult<PrivateEventEntry> {
+fn build_private_event_entry<T: PrivateEvent>(
+    private_event: T,
+    timestamp: Timestamp,
+) -> ExternResult<PrivateEventEntry> {
+    let event_type = private_event.event_type();
     let bytes: SerializedBytes = private_event
         .try_into()
         .map_err(|_err| wasm_error!("Failed to serialize private event."))?;
 
     let signed: SignedContent<SerializedBytes> = SignedContent {
         content: bytes,
-        timestamp: sys_time()?,
+        timestamp,
     };
     let my_pub_key = agent_info()?.agent_latest_pubkey;
     let signature = sign(my_pub_key.clone(), &signed)?;
     Ok(PrivateEventEntry(SignedEvent {
         author: my_pub_key,
+        event_type,
         signature,
         event: signed,
     }))
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
-    let entry = build_private_event_entry(private_event.clone())?;
+    let timestamp = sys_time()?;
     let validation_outcome =
-        private_event.validate(agent_info()?.agent_latest_pubkey, entry.0.event.timestamp)?;
+        private_event.validate(agent_info()?.agent_latest_pubkey, timestamp.clone())?;
+    let entry = build_private_event_entry(private_event, timestamp)?;
 
     match validation_outcome {
         ValidateCallbackResult::Valid => {}
@@ -94,15 +104,6 @@ pub fn send_private_event_to_new_recipients(
     Ok(())
 }
 
-fn check_is_linked_device(agent: AgentPubKey) -> ExternResult<()> {
-    let my_devices = query_my_linked_devices()?;
-    if my_devices.contains(&agent) {
-        Ok(())
-    } else {
-        Err(wasm_error!("Given agent is not a linked device."))
-    }
-}
-
 pub fn validate_private_event_entry<T: PrivateEvent>(
     private_event_entry: &PrivateEventEntry,
 ) -> ExternResult<ValidateCallbackResult> {
@@ -119,7 +120,18 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     }
 
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize the private event: {err:?}."))?;
+        .map_err(|err| wasm_error!("Failed to deserialize the private event."))?;
+
+    if private_event
+        .event_type()
+        .ne(&private_event_entry.0.event_type)
+    {
+        return Ok(ValidateCallbackResult::Invalid(format!(
+            "Invalid event type: expected '{}', but got '{}'.",
+            private_event_entry.0.event_type,
+            private_event.event_type()
+        )));
+    }
 
     private_event.validate(
         private_event_entry.0.author.clone(),
@@ -212,13 +224,6 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     })?;
     send_private_event_to_linked_devices_and_recipients::<T>(private_event_entry.clone())?;
 
-    let private_event = T::try_from(private_event_entry.0.event.content)
-        .map_err(|err| wasm_error!("Failed to deserialize private event: {err:?}."))?;
-    private_event.post_commit(
-        private_event_entry.0.author,
-        private_event_entry.0.event.timestamp,
-    )?;
-
     Ok(())
 }
 
@@ -235,7 +240,7 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     let my_linked_devices = query_my_linked_devices()?;
 
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize private event: {err:?}."))?;
+        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
 
     let recipients = private_event.recipients(
         private_event_entry.0.author.clone(),
@@ -269,6 +274,35 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     }
 
     Ok(())
+}
+
+pub fn query_private_event_entries_by_type(
+    event_type: &String,
+) -> ExternResult<BTreeMap<EntryHashB64, PrivateEventEntry>> {
+    let all_entries = query_private_event_entries(())?;
+
+    let entries_of_this_type = all_entries
+        .into_iter()
+        .filter(|(_hash, entry)| entry.0.event_type.eq(event_type))
+        .collect();
+    Ok(entries_of_this_type)
+}
+
+pub fn query_private_events_by_type<T: PrivateEvent>(
+    event_type: &String,
+) -> ExternResult<BTreeMap<EntryHashB64, SignedEvent<T>>> {
+    let private_events_entries = query_private_event_entries_by_type(event_type)?;
+
+    let private_events = private_events_entries
+        .into_iter()
+        .filter_map(|(entry_hash, entry)| {
+            private_event_entry_to_signed_event(entry)
+                .ok()
+                .map(|e| (entry_hash, e))
+        })
+        .collect();
+
+    Ok(private_events)
 }
 
 pub fn query_private_events<T: PrivateEvent>(
@@ -327,8 +361,9 @@ fn private_event_entry_to_signed_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<SignedEvent<T>> {
     let private_event = T::try_from(private_event_entry.0.event.content)
-        .map_err(|err| wasm_error!("Failed to deserialize private event: {err:?}."))?;
+        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
     Ok(SignedEvent {
+        event_type: private_event_entry.0.event_type,
         author: private_event_entry.0.author,
         signature: private_event_entry.0.signature,
         event: SignedContent {
@@ -346,4 +381,13 @@ pub fn query_private_event<T: PrivateEvent>(
     };
     let signed_event = private_event_entry_to_signed_event(private_event_entry)?;
     Ok(Some(signed_event))
+}
+
+fn check_is_linked_device(agent: AgentPubKey) -> ExternResult<()> {
+    let my_devices = query_my_linked_devices()?;
+    if my_devices.contains(&agent) {
+        Ok(())
+    } else {
+        Err(wasm_error!("Given agent is not a linked device."))
+    }
 }

@@ -8,6 +8,7 @@ pub struct SignedContent<T> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SignedEvent<T> {
+    pub event_type: String,
     pub author: AgentPubKey,
     pub signature: Signature,
     pub event: SignedContent<T>,
