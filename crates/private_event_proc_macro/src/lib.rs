@@ -12,10 +12,7 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = match &input {
         Item::Enum(ItemEnum { ident, .. }) => ident,
-        _ => abort!(
-            input,
-            "PrivateEventEnum can only be used on Enums or Structs"
-        ),
+        _ => abort!(input, "private_event can only be used on Enums"),
     };
 
     let output = quote::quote! {

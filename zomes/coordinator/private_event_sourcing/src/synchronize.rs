@@ -1,12 +1,14 @@
+use std::collections::BTreeMap;
+
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
     agent_encrypted_message::create_encrypted_message, linked_devices::query_my_linked_devices,
-    private_event::query_private_event_entries, PrivateEventSourcingRemoteSignal,
+    private_event::query_private_event_entries, private_event_entry_to_signed_event, PrivateEvent,
+    PrivateEventSourcingRemoteSignal,
 };
 
-#[hdk_extern]
 pub fn synchronize_with_linked_devices() -> ExternResult<()> {
     let my_pub_key = agent_info()?.agent_latest_pubkey;
 
@@ -69,6 +71,72 @@ pub fn synchronize_with_linked_devices() -> ExternResult<()> {
             )?;
 
             create_encrypted_message(agent.clone(), private_event_entry)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn get_agent_activity_private_events(agent: &AgentPubKey) -> ExternResult<Vec<EntryHash>> {
+    let private_event_entries_unit_entry_types: EntryType =
+        UnitEntryTypes::PrivateEvent.try_into()?;
+    let filter = ChainQueryFilter::new().entry_type(private_event_entries_unit_entry_types);
+    let activity = get_agent_activity(agent.clone(), filter, ActivityRequest::Full)?;
+
+    let get_inputs: Vec<GetInput> = activity
+        .valid_activity
+        .into_iter()
+        .map(|(_, action_hash)| GetInput::new(action_hash.into(), GetOptions::network()))
+        .collect();
+    let maybe_actions = HDK.with(|hdk| hdk.borrow().get(get_inputs))?;
+    let entry_hashes: Vec<EntryHash> = maybe_actions
+        .into_iter()
+        .filter_map(|r| r)
+        .filter_map(|r| match r.action() {
+            Action::Create(create) => Some(create.entry_hash.clone()),
+            _ => None,
+        })
+        .collect();
+
+    Ok(entry_hashes)
+}
+
+pub fn syncronize_with_recipients<T: PrivateEvent>() -> ExternResult<()> {
+    let private_event_entries = query_private_event_entries(())?;
+
+    let mut agent_private_events: BTreeMap<AgentPubKey, Vec<EntryHash>> = BTreeMap::new();
+
+    for (event_hash_b64, private_event_entry) in private_event_entries {
+        let private_event_bytes = SerializedBytes::try_from(
+            PrivateEventSourcingRemoteSignal::NewPrivateEvent(private_event_entry.clone()),
+        )
+        .map_err(|err| wasm_error!(err))?;
+        let signed_event = private_event_entry_to_signed_event::<T>(private_event_entry.clone())?;
+
+        let recipients = signed_event
+            .event
+            .content
+            .recipients(signed_event.author, signed_event.event.timestamp)?;
+
+        let event_hash = EntryHash::from(event_hash_b64);
+
+        for recipient in recipients {
+            if !agent_private_events.contains_key(&recipient) {
+                agent_private_events.insert(
+                    recipient.clone(),
+                    get_agent_activity_private_events(&recipient)?,
+                );
+            }
+
+            let Some(entry_hashes) = agent_private_events.get(&recipient) else {
+                return Err(wasm_error!("Unreachable: agent_private_events is None"));
+            };
+
+            if !entry_hashes.contains(&event_hash) {
+                send_remote_signal(&private_event_bytes, vec![recipient.clone()])?;
+
+                create_encrypted_message(recipient.clone(), private_event_entry.clone())?;
+            }
         }
     }
 

@@ -54,12 +54,9 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
 }
 
 #[hdk_extern(infallible)]
-fn scheduled_synchronize_with_linked_devices(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = commit_my_pending_encrypted_messages::<Event>() {
-        error!("Failed to commit my encrypted messages: {err:?}");
-    }
-    if let Err(err) = synchronize_with_linked_devices(()) {
-        error!("Failed to synchronize with other agents: {err:?}");
+fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
+    if let Err(err) = private_event_sourcing_scheduled_tasks::<Event>() {
+        error!("Failed to perform scheduled tasks: {err:?}");
     }
 
     Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
