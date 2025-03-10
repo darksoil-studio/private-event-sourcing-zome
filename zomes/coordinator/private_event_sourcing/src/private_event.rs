@@ -26,10 +26,10 @@ pub trait PrivateEvent: EventType + TryFrom<SerializedBytes> + TryInto<Serialize
         timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>>;
 
-    // /// Code to run after an event has been committed
-    // fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
-    //     Ok(())
-    // }
+    /// Code to run after an event has been committed
+    fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
+        Ok(())
+    }
 }
 
 fn build_private_event_entry<T: PrivateEvent>(
@@ -241,10 +241,17 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
         private_event_entry.clone(),
     )?;
 
+    let private_event = T::try_from(private_event_entry.0.event.content.clone())
+        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
+    private_event.post_commit(
+        private_event_entry.0.author,
+        private_event_entry.0.event.timestamp,
+    )?;
+
     Ok(entry_hash)
 }
 
-pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
+fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     entry_hash: EntryHash,
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<()> {
