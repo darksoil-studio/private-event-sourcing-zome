@@ -80,9 +80,7 @@ pub fn synchronize_with_linked_devices() -> ExternResult<()> {
 }
 
 fn get_private_events_already_sent_to(agent: &AgentPubKey) -> ExternResult<BTreeSet<EntryHash>> {
-    let private_event_entries_unit_entry_types: EntryType =
-        UnitEntryTypes::PrivateEvent.try_into()?;
-    let filter = ChainQueryFilter::new().entry_type(private_event_entries_unit_entry_types);
+    let filter = ChainQueryFilter::new().entry_type(UnitEntryTypes::PrivateEvent.try_into()?);
     let activity = get_agent_activity(agent.clone(), filter, ActivityRequest::Full)?;
 
     let get_inputs: Vec<GetInput> = activity
@@ -99,6 +97,29 @@ fn get_private_events_already_sent_to(agent: &AgentPubKey) -> ExternResult<BTree
             _ => None,
         })
         .collect();
+
+    let filter =
+        ChainQueryFilter::new().entry_type(UnitEntryTypes::EventHistorySummary.try_into()?);
+    let activity = get_agent_activity(agent.clone(), filter, ActivityRequest::Full)?;
+
+    let get_inputs: Vec<GetInput> = activity
+        .valid_activity
+        .into_iter()
+        .map(|(_, action_hash)| GetInput::new(action_hash.into(), GetOptions::network()))
+        .collect();
+    let maybe_records = HDK.with(|hdk| hdk.borrow().get(get_inputs))?;
+    let mut entry_hashes_from_summaries: BTreeSet<EntryHash> = maybe_records
+        .into_iter()
+        .filter_map(|r| r)
+        .filter_map(|r| {
+            let entry = r.entry().as_option().clone()?;
+            let event_history_summary = EventHistorySummary::try_from(entry).ok()?;
+            Some(event_history_summary.events_hashes)
+        })
+        .flatten()
+        .collect();
+
+    entry_hashes.append(&mut entry_hashes_from_summaries);
 
     let links = get_agent_encrypted_messages(agent.clone())?;
 

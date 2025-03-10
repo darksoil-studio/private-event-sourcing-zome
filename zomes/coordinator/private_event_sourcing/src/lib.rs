@@ -13,7 +13,9 @@ mod private_event;
 pub use private_event::*;
 mod synchronize;
 pub use synchronize::synchronize_with_linked_devices;
+mod event_history;
 mod utils;
+pub use event_history::*;
 
 pub use strum::IntoStaticStr;
 
