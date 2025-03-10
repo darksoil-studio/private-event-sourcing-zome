@@ -1,14 +1,19 @@
-use example_integrity::*;
 use hdk::prelude::*;
 use private_event_sourcing::*;
 
-#[derive(Serialize, Deserialize, Debug, SerializedBytes, Clone)]
-pub struct SharedEntry {
-    recipient: AgentPubKey,
-    content: String,
+#[private_event]
+#[serde(tag = "type")]
+pub enum Event {
+    SharedEntry {
+        recipient: AgentPubKey,
+        content: String,
+    },
+    NewFriend {
+        friend: AgentPubKey,
+    },
 }
 
-impl PrivateEvent for SharedEntry {
+impl PrivateEvent for Event {
     fn validate(
         &self,
         author: AgentPubKey,
@@ -16,24 +21,54 @@ impl PrivateEvent for SharedEntry {
     ) -> ExternResult<ValidateCallbackResult> {
         Ok(ValidateCallbackResult::Valid)
     }
+
     fn recipients(
         &self,
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>> {
-        Ok(vec![self.recipient.clone()])
+        match self {
+            Event::SharedEntry { recipient, .. } => {
+                let mut recipients = query_friends()?;
+                recipients.insert(recipient.clone());
+
+                Ok(recipients.into_iter().collect())
+            }
+            _ => Ok(vec![]),
+        }
     }
 }
 
 #[hdk_extern]
-pub fn create_private_shared_entry(entry: SharedEntry) -> ExternResult<()> {
+pub fn create_private_shared_entry(entry: Event) -> ExternResult<()> {
     create_private_event(entry)?;
     Ok(())
 }
 
 #[hdk_extern]
+pub fn add_friend(friend: AgentPubKey) -> ExternResult<()> {
+    create_private_event(Event::NewFriend { friend })?;
+    Ok(())
+}
+
+pub fn query_friends() -> ExternResult<BTreeSet<AgentPubKey>> {
+    let private_events = query_private_events::<Event>()?;
+
+    let mut friends: BTreeSet<AgentPubKey> = BTreeSet::new();
+
+    for (_hash, private_event) in private_events {
+        let Event::NewFriend { friend } = private_event.event.content else {
+            continue;
+        };
+        friends.insert(friend);
+    }
+
+    Ok(friends)
+}
+
+#[hdk_extern]
 pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
-    private_event_sourcing::attempt_commit_awaiting_deps_entries::<SharedEntry>()?;
+    private_event_sourcing::attempt_commit_awaiting_deps_entries::<Event>()?;
 
     Ok(())
 }
@@ -43,19 +78,16 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     if let Ok(private_event_sourcing_remote_signal) =
         PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
     {
-        recv_private_events_remote_signal::<SharedEntry>(private_event_sourcing_remote_signal)
+        recv_private_events_remote_signal::<Event>(private_event_sourcing_remote_signal)
     } else {
         Ok(())
     }
 }
 
 #[hdk_extern(infallible)]
-fn scheduled_synchronize_with_linked_devices(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = commit_my_pending_encrypted_messages::<SharedEntry>() {
-        error!("Failed to commit my encrypted messages: {err:?}");
-    }
-    if let Err(err) = synchronize_with_linked_devices(()) {
-        error!("Failed to synchronize with other agents: {err:?}");
+fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
+    if let Err(err) = private_event_sourcing::scheduled_tasks::<Event>() {
+        error!("Failed to perform scheduled tasks: {err:?}");
     }
 
     Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds

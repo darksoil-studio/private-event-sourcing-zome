@@ -3,6 +3,7 @@ use hdi::prelude::*;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SignedContent<T> {
     pub timestamp: Timestamp,
+    pub event_type: String,
     pub content: T,
 }
 

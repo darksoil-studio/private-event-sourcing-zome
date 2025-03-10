@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use hdk::prelude::*;
 use private_event_sourcing::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone, SerializedBytes)]
+#[private_event]
 #[serde(tag = "type")]
 pub enum YOURZOMEEvent {}
 
@@ -60,12 +60,9 @@ pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
 }
 
 #[hdk_extern(infallible)]
-fn scheduled_synchronize_with_linked_devices(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = commit_my_pending_encrypted_messages::<YOURZOMEEvent>() {
-        error!("Failed to commit my encrypted messages: {err:?}");
-    }
-    if let Err(err) = synchronize_with_linked_devices(()) {
-        error!("Failed to synchronize with other agents: {err:?}");
+fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
+    if let Err(err) = private_event_sourcing_scheduled_tasks::<Event>() {
+        error!("Failed to perform scheduled tasks: {err:?}");
     }
 
     Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
