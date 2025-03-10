@@ -8,6 +8,9 @@ pub enum Event {
         recipient: AgentPubKey,
         content: String,
     },
+    NewFriend {
+        friend: AgentPubKey,
+    },
 }
 
 impl PrivateEvent for Event {
@@ -24,8 +27,15 @@ impl PrivateEvent for Event {
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>> {
-        let Event::SharedEntry { recipient, .. } = self;
-        Ok(vec![recipient.clone()])
+        match self {
+            Event::SharedEntry { recipient, .. } => {
+                let mut recipients = query_friends()?;
+                recipients.insert(recipient.clone());
+
+                Ok(recipients.into_iter().collect())
+            }
+            _ => Ok(vec![]),
+        }
     }
 }
 
@@ -33,6 +43,27 @@ impl PrivateEvent for Event {
 pub fn create_private_shared_entry(entry: Event) -> ExternResult<()> {
     create_private_event(entry)?;
     Ok(())
+}
+
+#[hdk_extern]
+pub fn add_friend(friend: AgentPubKey) -> ExternResult<()> {
+    create_private_event(Event::NewFriend { friend })?;
+    Ok(())
+}
+
+pub fn query_friends() -> ExternResult<BTreeSet<AgentPubKey>> {
+    let private_events = query_private_events::<Event>()?;
+
+    let mut friends: BTreeSet<AgentPubKey> = BTreeSet::new();
+
+    for (_hash, private_event) in private_events {
+        let Event::NewFriend { friend } = private_event.event.content else {
+            continue;
+        };
+        friends.insert(friend);
+    }
+
+    Ok(friends)
 }
 
 #[hdk_extern]

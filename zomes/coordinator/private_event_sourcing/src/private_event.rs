@@ -71,11 +71,8 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
             "Could not create private event because of unresolved dependencies."
         ))?,
     };
-    let entry_hash = hash_entry(&entry)?;
 
-    internal_create_private_event::<T>(entry)?;
-
-    Ok(entry_hash)
+    internal_create_private_event::<T>(entry)
 }
 
 pub fn send_private_events_to_new_recipients<T: PrivateEvent>(
@@ -90,7 +87,7 @@ pub fn send_private_events_to_new_recipients<T: PrivateEvent>(
 fn send_private_event_to_new_recipients<T: PrivateEvent>(
     event_hash: EntryHash,
 ) -> ExternResult<()> {
-    let Some(private_event_entry) = query_private_event_entry(event_hash)? else {
+    let Some(private_event_entry) = query_private_event_entry(event_hash.clone())? else {
         return Err(wasm_error!(
             "PrivateEventEntry with hash {event_hash} not found."
         ));
@@ -115,7 +112,7 @@ fn send_private_event_to_new_recipients<T: PrivateEvent>(
         recipients.clone(),
     )?;
     for recipient in recipients {
-        create_encrypted_message(recipient, private_event_entry.clone())?;
+        create_encrypted_message(recipient, event_hash.clone(), private_event_entry.clone())?;
     }
     Ok(())
 }
@@ -226,7 +223,8 @@ pub fn receive_private_events<T: PrivateEvent>(
 
 pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
-) -> ExternResult<()> {
+) -> ExternResult<EntryHash> {
+    let entry_hash = hash_entry(&private_event_entry)?;
     let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
     let action_hash = create_relaxed(app_entry.clone())?;
     let Some(record) = get(action_hash, GetOptions::local())? else {
@@ -238,12 +236,16 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
         action: record.signed_action,
         app_entry: app_entry.clone(),
     })?;
-    send_private_event_to_linked_devices_and_recipients::<T>(private_event_entry.clone())?;
+    send_private_event_to_linked_devices_and_recipients::<T>(
+        entry_hash.clone(),
+        private_event_entry.clone(),
+    )?;
 
-    Ok(())
+    Ok(entry_hash)
 }
 
 pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
+    entry_hash: EntryHash,
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<()> {
     let my_pub_key = agent_info()?.agent_latest_pubkey;
@@ -272,7 +274,11 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
     )?;
 
     for linked_device in my_linked_devices {
-        create_encrypted_message(linked_device, private_event_entry.clone())?;
+        create_encrypted_message(
+            linked_device,
+            entry_hash.clone(),
+            private_event_entry.clone(),
+        )?;
     }
 
     // Send to recipients
@@ -286,7 +292,7 @@ pub fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
         recipients.clone(),
     )?;
     for recipient in recipients {
-        create_encrypted_message(recipient, private_event_entry.clone())?;
+        create_encrypted_message(recipient, entry_hash.clone(), private_event_entry.clone())?;
     }
 
     Ok(())

@@ -55,9 +55,9 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 
 		await bob.startUp();
 
-		waitUntil(async () => {
+		await waitUntil(async () => {
 			const privateEvents = await toPromise(bob.store.privateEvents);
 			return Object.keys(privateEvents).length === 1;
-		}, 40_000);
+		}, 60_000);
 	});
 });
