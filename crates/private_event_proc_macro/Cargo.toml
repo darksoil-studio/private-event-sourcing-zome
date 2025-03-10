@@ -1,0 +1,14 @@
+[package]
+name = "private_event_proc_macro"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+strum = { version = "0.27", features = ["derive"] }
+syn = { version = "1", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
+proc-macro-error = "1.0.4"

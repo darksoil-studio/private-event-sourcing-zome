@@ -15,6 +15,18 @@ mod synchronize;
 pub use synchronize::synchronize_with_linked_devices;
 mod utils;
 
+pub use strum::IntoStaticStr;
+
+pub use private_event_proc_macro::*;
+use synchronize::syncronize_with_recipients;
+
+pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
+    commit_my_pending_encrypted_messages::<T>()?;
+    synchronize_with_linked_devices()?;
+    syncronize_with_recipients::<T>()?;
+    Ok(())
+}
+
 #[hdk_extern]
 pub fn init() -> ExternResult<InitCallbackResult> {
     let mut fns: BTreeSet<GrantedFunction> = BTreeSet::new();
@@ -27,7 +39,7 @@ pub fn init() -> ExternResult<InitCallbackResult> {
     };
     create_cap_grant(cap_grant)?;
 
-    schedule("scheduled_synchronize_with_linked_devices")?;
+    schedule("scheduled_tasks")?;
 
     Ok(InitCallbackResult::Pass)
 }

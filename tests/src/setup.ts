@@ -1,21 +1,5 @@
-import {
-	ActionHash,
-	AgentPubKey,
-	AppBundleSource,
-	AppCallZomeRequest,
-	AppWebsocket,
-	EntryHash,
-	NewEntryAction,
-	Record,
-	encodeHashToBase64,
-	fakeActionHash,
-	fakeAgentPubKey,
-	fakeDnaHash,
-	fakeEntryHash,
-} from '@holochain/client';
-import { Player, Scenario, dhtSync, pause } from '@holochain/tryorama';
-import { encode } from '@msgpack/msgpack';
-import { EntryRecord } from '@tnesh-stack/utils';
+import { AppWebsocket } from '@holochain/client';
+import { Scenario, dhtSync, pause } from '@holochain/tryorama';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -110,7 +94,9 @@ export async function waitUntil(
 ) {
 	const start = Date.now();
 	const isDone = await condition();
-	if (isDone) return;
+	if (isDone) {
+		return;
+	}
 	if (timeout <= 0) throw new Error('timeout');
 	await pause(1000);
 	return waitUntil(condition, timeout - (Date.now() - start));
