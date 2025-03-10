@@ -55,7 +55,7 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
 
 #[hdk_extern(infallible)]
 fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = private_event_sourcing_scheduled_tasks::<Event>() {
+    if let Err(err) = private_event_sourcing::scheduled_tasks::<Event>() {
         error!("Failed to perform scheduled tasks: {err:?}");
     }
 
