@@ -30,15 +30,15 @@ impl PrivateEvent for Event {
         _entry_hash: EntryHash,
         _author: AgentPubKey,
         _timestamp: Timestamp,
-    ) -> ExternResult<Vec<AgentPubKey>> {
+    ) -> ExternResult<BTreeSet<AgentPubKey>> {
         match self {
             Event::SharedEntry { recipient, .. } => {
                 let mut recipients = query_friends()?;
                 recipients.insert(recipient.clone());
 
-                Ok(recipients.into_iter().collect())
+                Ok(recipients)
             }
-            _ => Ok(vec![]),
+            _ => Ok(BTreeSet::new()),
         }
     }
 }
