@@ -18,16 +18,18 @@ pub enum Event {
 impl PrivateEvent for Event {
     fn validate(
         &self,
-        author: AgentPubKey,
-        timestamp: Timestamp,
+        _entry_hash: EntryHash,
+        _author: AgentPubKey,
+        _timestamp: Timestamp,
     ) -> ExternResult<ValidateCallbackResult> {
         Ok(ValidateCallbackResult::Valid)
     }
 
     fn recipients(
         &self,
-        author: AgentPubKey,
-        timestamp: Timestamp,
+        _entry_hash: EntryHash,
+        _author: AgentPubKey,
+        _timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>> {
         match self {
             Event::SharedEntry { recipient, .. } => {

@@ -148,7 +148,11 @@ pub fn syncronize_with_recipients<T: PrivateEvent>() -> ExternResult<()> {
         let recipients: BTreeSet<AgentPubKey> = signed_event
             .event
             .content
-            .recipients(signed_event.author, signed_event.event.timestamp)?
+            .recipients(
+                event_hash_b64.clone().into(),
+                signed_event.author,
+                signed_event.event.timestamp,
+            )?
             .into_iter()
             .filter(|recipient| !all_my_agents.contains(&recipient))
             .collect();
