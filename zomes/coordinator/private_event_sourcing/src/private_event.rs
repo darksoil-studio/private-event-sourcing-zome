@@ -17,7 +17,7 @@ pub trait PrivateEvent:
     /// Whether the given entry is to be accepted in to our source chain
     fn validate(
         &self,
-        entry_hash: EntryHash,
+        event_hash: EntryHash,
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<ValidateCallbackResult>;
@@ -25,10 +25,10 @@ pub trait PrivateEvent:
     /// The agents other than the linked devices for the author that are suposed to receive this entry
     fn recipients(
         &self,
-        entry_hash: EntryHash,
+        event_hash: EntryHash,
         author: AgentPubKey,
         timestamp: Timestamp,
-    ) -> ExternResult<Vec<AgentPubKey>>;
+    ) -> ExternResult<BTreeSet<AgentPubKey>>;
 
     /// Code to run after an event has been committed
     fn post_commit(
@@ -123,7 +123,7 @@ fn send_private_event_to_new_recipients<T: PrivateEvent>(
             private_event_entry.clone(),
         ))
         .map_err(|err| wasm_error!(err))?,
-        recipients.clone(),
+        recipients.clone().into_iter().collect(),
     )?;
     for recipient in recipients {
         create_encrypted_message(recipient, event_hash.clone(), private_event_entry.clone())?;
@@ -322,7 +322,7 @@ fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
             private_event_entry.clone(),
         ))
         .map_err(|err| wasm_error!(err))?,
-        recipients.clone(),
+        recipients.clone().into_iter().collect(),
     )?;
     for recipient in recipients {
         create_encrypted_message(recipient, entry_hash.clone(), private_event_entry.clone())?;

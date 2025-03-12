@@ -19,32 +19,11 @@ pub fn synchronize_with_linked_devices() -> ExternResult<()> {
 
     let private_event_entries = query_private_event_entries(())?;
 
-    let private_event_entries_unit_entry_types: EntryType =
-        UnitEntryTypes::PrivateEvent.try_into()?;
-
     let my_private_event_entries_hashes = private_event_entries.keys();
 
     for agent in other_agents {
-        let private_event_entries_agent_activity = get_agent_activity(
-            agent.clone(),
-            ChainQueryFilter::new()
-                .entry_type(private_event_entries_unit_entry_types.clone())
-                .clone(),
-            ActivityRequest::Full,
-        )?;
-
-        let actions_get_inputs = private_event_entries_agent_activity
-            .valid_activity
-            .into_iter()
-            .map(|(_, action_hash)| GetInput::new(action_hash.into(), GetOptions::network()))
-            .collect();
-
-        let records = HDK.with(|hdk| hdk.borrow().get(actions_get_inputs))?;
-        let existing_private_event_entries_hashes: HashSet<EntryHash> = records
-            .into_iter()
-            .filter_map(|r| r)
-            .filter_map(|r| r.action().entry_hash().cloned())
-            .collect();
+        let existing_private_event_entries_hashes: BTreeSet<EntryHash> =
+            get_private_events_already_sent_to(&agent)?;
 
         let missing_private_entry_hashes: Vec<EntryHashB64> = my_private_event_entries_hashes
             .clone()
