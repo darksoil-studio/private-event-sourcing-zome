@@ -11,10 +11,13 @@ pub trait EventType {
     fn event_type(&self) -> String;
 }
 
-pub trait PrivateEvent: EventType + TryFrom<SerializedBytes> + TryInto<SerializedBytes> {
+pub trait PrivateEvent:
+    EventType + Clone + TryFrom<SerializedBytes> + TryInto<SerializedBytes>
+{
     /// Whether the given entry is to be accepted in to our source chain
     fn validate(
         &self,
+        entry_hash: EntryHash,
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<ValidateCallbackResult>;
@@ -22,12 +25,18 @@ pub trait PrivateEvent: EventType + TryFrom<SerializedBytes> + TryInto<Serialize
     /// The agents other than the linked devices for the author that are suposed to receive this entry
     fn recipients(
         &self,
+        entry_hash: EntryHash,
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<Vec<AgentPubKey>>;
 
     /// Code to run after an event has been committed
-    fn post_commit(&self, author: AgentPubKey, timestamp: Timestamp) -> ExternResult<()> {
+    fn post_commit(
+        &self,
+        entry_hash: EntryHash,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<()> {
         Ok(())
     }
 }
@@ -57,9 +66,13 @@ fn build_private_event_entry<T: PrivateEvent>(
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
     let timestamp = sys_time()?;
-    let validation_outcome =
-        private_event.validate(agent_info()?.agent_latest_pubkey, timestamp.clone())?;
-    let entry = build_private_event_entry(private_event, timestamp)?;
+    let entry = build_private_event_entry(private_event.clone(), timestamp)?;
+    let entry_hash = hash_entry(&entry)?;
+    let validation_outcome = private_event.validate(
+        entry_hash,
+        agent_info()?.agent_latest_pubkey,
+        timestamp.clone(),
+    )?;
 
     match validation_outcome {
         ValidateCallbackResult::Valid => {}
@@ -97,6 +110,7 @@ fn send_private_event_to_new_recipients<T: PrivateEvent>(
         .map_err(|err| wasm_error!("Failed to deserialize the private event."))?;
 
     let recipients = private_event.recipients(
+        event_hash.clone(),
         private_event_entry.0.author.clone(),
         private_event_entry.0.event.timestamp,
     )?;
@@ -118,6 +132,7 @@ fn send_private_event_to_new_recipients<T: PrivateEvent>(
 }
 
 pub fn validate_private_event_entry<T: PrivateEvent>(
+    entry_hash: EntryHash,
     private_event_entry: &PrivateEventEntry,
 ) -> ExternResult<ValidateCallbackResult> {
     let valid = verify_signature(
@@ -129,6 +144,13 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     if !valid {
         return Ok(ValidateCallbackResult::Invalid(String::from(
             "Invalid private event entry: invalid signature.",
+        )));
+    }
+    let expected_entry_hash = hash_entry(private_event_entry)?;
+
+    if expected_entry_hash.ne(&entry_hash) {
+        return Ok(ValidateCallbackResult::Invalid(String::from(
+            "Invalid private event entry: invalid entry hash.",
         )));
     }
 
@@ -147,6 +169,7 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     }
 
     private_event.validate(
+        entry_hash,
         private_event_entry.0.author.clone(),
         private_event_entry.0.event.timestamp,
     )
@@ -159,8 +182,9 @@ pub fn receive_private_event<T: PrivateEvent>(
     debug!("[receive_private_event/start]");
 
     // check_is_linked_device(provenance)?;
+    let entry_hash = hash_entry(&private_event_entry)?;
 
-    let outcome = validate_private_event_entry::<T>(&private_event_entry)?;
+    let outcome = validate_private_event_entry::<T>(entry_hash, &private_event_entry)?;
 
     match outcome {
         ValidateCallbackResult::Valid => {
@@ -200,7 +224,7 @@ pub fn receive_private_events<T: PrivateEvent>(
             continue;
         }
 
-        let outcome = validate_private_event_entry::<T>(&private_event_entry)?;
+        let outcome = validate_private_event_entry::<T>(entry_hash.into(), &private_event_entry)?;
 
         match outcome {
             ValidateCallbackResult::Valid => {
@@ -244,6 +268,7 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
         .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
     private_event.post_commit(
+        entry_hash.clone(),
         private_event_entry.0.author,
         private_event_entry.0.event.timestamp,
     )?;
@@ -268,6 +293,7 @@ fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
         .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
 
     let recipients = private_event.recipients(
+        entry_hash.clone(),
         private_event_entry.0.author.clone(),
         private_event_entry.0.event.timestamp,
     )?;
