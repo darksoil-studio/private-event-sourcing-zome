@@ -2,10 +2,7 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 use std::collections::BTreeMap;
 
-use crate::{
-    agent_encrypted_message::create_encrypted_message, linked_devices::query_my_linked_devices,
-    utils::create_relaxed, PrivateEventSourcingRemoteSignal, Signal,
-};
+use crate::{linked_devices::query_my_linked_devices, send_events, utils::create_relaxed, Signal};
 
 pub trait EventType {
     fn event_type(&self) -> String;
@@ -89,46 +86,9 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
 }
 
 pub fn send_private_events_to_new_recipients<T: PrivateEvent>(
-    events_hashes: Vec<EntryHash>,
+    events_hashes: BTreeSet<EntryHash>,
 ) -> ExternResult<()> {
-    for event_hash in events_hashes {
-        send_private_event_to_new_recipients::<T>(event_hash)?;
-    }
-    Ok(())
-}
-
-fn send_private_event_to_new_recipients<T: PrivateEvent>(
-    event_hash: EntryHash,
-) -> ExternResult<()> {
-    let Some(private_event_entry) = query_private_event_entry(event_hash.clone())? else {
-        return Err(wasm_error!(
-            "PrivateEventEntry with hash {event_hash} not found."
-        ));
-    };
-
-    let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize the private event."))?;
-
-    let recipients = private_event.recipients(
-        event_hash.clone(),
-        private_event_entry.0.author.clone(),
-        private_event_entry.0.event.timestamp,
-    )?;
-
-    // Send to recipients
-    info!("Sending private event entry to new recipients: {recipients:?}.");
-
-    send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
-            private_event_entry.clone(),
-        ))
-        .map_err(|err| wasm_error!(err))?,
-        recipients.clone().into_iter().collect(),
-    )?;
-    for recipient in recipients {
-        create_encrypted_message(recipient, event_hash.clone(), private_event_entry.clone())?;
-    }
-    Ok(())
+    send_events::<T>(events_hashes)
 }
 
 pub fn validate_private_event_entry<T: PrivateEvent>(
@@ -175,39 +135,11 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     )
 }
 
-pub fn receive_private_event<T: PrivateEvent>(
-    provenance: AgentPubKey,
-    private_event_entry: PrivateEventEntry,
-) -> ExternResult<()> {
-    debug!("[receive_private_event/start]");
-
-    // check_is_linked_device(provenance)?;
-    let entry_hash = hash_entry(&private_event_entry)?;
-
-    let outcome = validate_private_event_entry::<T>(entry_hash, &private_event_entry)?;
-
-    match outcome {
-        ValidateCallbackResult::Valid => {
-            info!("Received a PrivateEvent.");
-            internal_create_private_event::<T>(private_event_entry)?;
-        }
-        ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
-            create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
-                event: private_event_entry,
-                unresolved_dependencies,
-            }))?;
-        }
-        ValidateCallbackResult::Invalid(reason) => {
-            return Err(wasm_error!("Invalid PrivateEvent: {:?}.", reason));
-        }
-    }
-    Ok(())
-}
-
 pub fn receive_private_events<T: PrivateEvent>(
     provenance: AgentPubKey,
     private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
 ) -> ExternResult<()> {
+    debug!("[receive_private_events/start]");
     // check_is_linked_device(provenance)?;
 
     let my_private_event_entries = query_private_event_entries(())?;
@@ -249,7 +181,7 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<EntryHash> {
     let entry_hash = hash_entry(&private_event_entry)?;
-    let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+    let app_entry = EntryTypes::PrivateEvent(private_event_entry);
     let action_hash = create_relaxed(app_entry.clone())?;
     let Some(record) = get(action_hash, GetOptions::local())? else {
         return Err(wasm_error!(
@@ -258,77 +190,22 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     };
     emit_signal(Signal::EntryCreated {
         action: record.signed_action,
-        app_entry: app_entry.clone(),
+        app_entry,
     })?;
-    send_private_event_to_linked_devices_and_recipients::<T>(
-        entry_hash.clone(),
-        private_event_entry.clone(),
-    )?;
+    // send_private_event_to_linked_devices_and_recipients::<T>(
+    //     entry_hash.clone(),
+    //     private_event_entry.clone(),
+    // )?;
 
-    let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    private_event.post_commit(
-        entry_hash.clone(),
-        private_event_entry.0.author,
-        private_event_entry.0.event.timestamp,
-    )?;
+    // let private_event = T::try_from(private_event_entry.0.event.content.clone())
+    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
+    // private_event.post_commit(
+    //     entry_hash.clone(),
+    //     private_event_entry.0.author,
+    //     private_event_entry.0.event.timestamp,
+    // )?;
 
     Ok(entry_hash)
-}
-
-fn send_private_event_to_linked_devices_and_recipients<T: PrivateEvent>(
-    entry_hash: EntryHash,
-    private_event_entry: PrivateEventEntry,
-) -> ExternResult<()> {
-    let my_pub_key = agent_info()?.agent_latest_pubkey;
-
-    // We are not the author, do nothing
-    if private_event_entry.0.author.ne(&my_pub_key) {
-        return Ok(());
-    }
-
-    let my_linked_devices = query_my_linked_devices()?;
-
-    let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-
-    let recipients = private_event.recipients(
-        entry_hash.clone(),
-        private_event_entry.0.author.clone(),
-        private_event_entry.0.event.timestamp,
-    )?;
-
-    send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
-            private_event_entry.clone(),
-        ))
-        .map_err(|err| wasm_error!(err))?,
-        my_linked_devices.clone(),
-    )?;
-
-    for linked_device in my_linked_devices {
-        create_encrypted_message(
-            linked_device,
-            entry_hash.clone(),
-            private_event_entry.clone(),
-        )?;
-    }
-
-    // Send to recipients
-    info!("Sending private event entry to recipients: {recipients:?}.");
-
-    send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::NewPrivateEvent(
-            private_event_entry.clone(),
-        ))
-        .map_err(|err| wasm_error!(err))?,
-        recipients.clone().into_iter().collect(),
-    )?;
-    for recipient in recipients {
-        create_encrypted_message(recipient, entry_hash.clone(), private_event_entry.clone())?;
-    }
-
-    Ok(())
 }
 
 pub fn query_private_event_entries_by_type(

@@ -77,22 +77,22 @@ pub fn get_linked_devices_with_proof_for(
     Ok(linked_devices)
 }
 
-pub fn get_linked_devices_for(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKey>> {
+pub fn get_linked_devices_for(agent: AgentPubKey) -> ExternResult<BTreeSet<AgentPubKey>> {
     let linked_devices = get_linked_devices_with_proof_for(agent)?;
-    let agents: Vec<AgentPubKey> = linked_devices.into_keys().collect();
+    let agents = linked_devices.into_keys().collect();
 
     Ok(agents)
 }
 
-pub fn get_all_agents_for(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKey>> {
+pub fn get_all_agents_for(agent: AgentPubKey) -> ExternResult<BTreeSet<AgentPubKey>> {
     let mut agents = get_linked_devices_for(agent.clone())?;
-    agents.push(agent);
+    agents.insert(agent);
     Ok(agents)
 }
 
-pub fn query_all_my_agents() -> ExternResult<Vec<AgentPubKey>> {
+pub fn query_all_my_agents() -> ExternResult<BTreeSet<AgentPubKey>> {
     let mut agents = query_my_linked_devices()?;
-    agents.push(agent_info()?.agent_latest_pubkey);
+    agents.insert(agent_info()?.agent_latest_pubkey);
     Ok(agents)
 }
 
@@ -126,7 +126,7 @@ pub fn query_my_linked_devices_with_proof(
     Ok(linked_devices)
 }
 
-pub fn query_my_linked_devices() -> ExternResult<Vec<AgentPubKey>> {
+pub fn query_my_linked_devices() -> ExternResult<BTreeSet<AgentPubKey>> {
     let linked_devices = query_my_linked_devices_with_proof()?;
 
     let agents = linked_devices.into_keys().collect();

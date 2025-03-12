@@ -78,6 +78,11 @@ pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
 }
 
 #[hdk_extern]
+pub fn send_events(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
+    private_event_sourcing::send_events::<Event>(events_hashes)
+}
+
+#[hdk_extern]
 pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     if let Ok(private_event_sourcing_remote_signal) =
         PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
