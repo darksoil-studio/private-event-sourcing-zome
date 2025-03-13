@@ -48,14 +48,14 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@darksoil-studio/profiles-zome':
-        specifier: 0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68
-        version: 0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
+        specifier: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902
+        version: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@holochain/client':
         specifier: ^0.18.0
         version: 0.18.0
       '@shoelace-style/shoelace':
         specifier: ^2.11.0
-        version: 2.20.0(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
+        version: 2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       api-viewer-element:
         specifier: ^1.0.0-pre.10
         version: 1.0.0-pre.10
@@ -70,10 +70,10 @@ importers:
         version: 11.4.1
       vitepress:
         specifier: ^1.0.1
-        version: 1.6.3(@algolia/client-search@5.20.3)(@types/react@18.3.18)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)
+        version: 1.6.3(@algolia/client-search@5.20.3)(@types/react@19.0.10)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)
       vitepress-plugin-mermaid:
         specifier: ^2.0.16
-        version: 2.0.17(mermaid@11.4.1)(vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@18.3.18)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2))
+        version: 2.0.17(mermaid@11.4.1)(vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@19.0.10)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2))
 
   tests:
     dependencies:
@@ -101,9 +101,6 @@ importers:
 
   ui:
     dependencies:
-      '@darksoil-studio/profiles-zome':
-        specifier: 0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68
-        version: 0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@holochain/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -138,6 +135,9 @@ importers:
       '@custom-elements-manifest/analyzer':
         specifier: ^0.10.3
         version: 0.10.4
+      '@darksoil-studio/profiles-zome':
+        specifier: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902
+        version: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@lit/localize-tools':
         specifier: ^0.6.3
         version: 0.6.10
@@ -349,11 +349,14 @@ packages:
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
 
-  '@darksoil-studio/linked-devices-zome@0.400.0-rev.23d64f1ce59822d7e1849d75c2d978cb6a0d62c8':
-    resolution: {integrity: sha512-sXJoelDpELCcuuwbeqWOadd55MCJPO70w3obcI5hFgiFovMuAlN1fAI86U0IA9S3DZPkRAJA/ac/86SzCrh6Fg==}
+  '@darksoil-studio/linked-devices-zome@0.400.0-rev.3771839e56d9f93f7d5c3f4cb2171b305e98d4f5':
+    resolution: {integrity: sha512-dnd+6xgkcLrOCNHG6aUoLwZY+Zg169HyZW3t3JBacG+2itZZxHM+aDlh/j6z7DfLkFev85JsBa9nREGVyyYqjw==}
 
-  '@darksoil-studio/profiles-zome@0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68':
-    resolution: {integrity: sha512-S0kiFazqrX4G8Pc2bfwXsfQ3lLMevm+NjIBh0EjBrfqC1SnEoxjqA2F22j/7Qy9T3jeAP9KGAFDi07JqlYofZw==}
+  '@darksoil-studio/profiles-provider@0.400.1':
+    resolution: {integrity: sha512-Ja77MAjyVlTAHzEZjW+10vFrGRV6BSzEBSmR/M2Rl7t98geO424N9CgasMPcq1g7knwv6AIsKOo6OC4a/q2Ohg==}
+
+  '@darksoil-studio/profiles-zome@0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902':
+    resolution: {integrity: sha512-Ahe5CCpJxpgDr5PLnJ1fNbQjEkszWvKiv+V7P9kdMbGb8JHeSGnSH7qVRTqIqzqeYiQFsxHSgBK7FG2p9u/Qkw==}
 
   '@docsearch/css@3.8.2':
     resolution: {integrity: sha512-y05ayQFyUmCXze79+56v/4HpycYF3uFqB78pLPrSV5ZKAlDuIAAJNhaRi8tTdRNXh05yxX/TyNnzD6LwSM89vQ==}
@@ -1096,12 +1099,6 @@ packages:
 
   '@types/mdurl@2.0.0':
     resolution: {integrity: sha512-RGdgjQUZba5p6QEFAVx2OGb8rQDL/cPRG7GiedRzMcJ1tYnUANBncjbSB1NRGwbvjcPeikRABz2nshyPk1bhWg==}
-
-  '@types/prop-types@15.7.14':
-    resolution: {integrity: sha512-gNMvNH49DJ7OJYv+KAKn0Xp45p8PLl6zo2YnvDIbTd4J6MER2BmWN49TG7n9LvkyihINxeKW8+3bfS2yDC9dzQ==}
-
-  '@types/react@18.3.18':
-    resolution: {integrity: sha512-t4yC+vtgnkYjNSKlFx1jkAhH8LgTo2N/7Qvi83kdEaUtMDiwpbLAktKDaAMlRcJ5eSxZkH74eEGt1ky31d7kfQ==}
 
   '@types/react@19.0.10':
     resolution: {integrity: sha512-JuRQ9KXLEjaUNjTWpzuR231Z2WpIwczOkBEIvbHNCzQefFIT0L8IqE6NV6ULLyC1SI/i234JnDoMkfg+RjQj2g==}
@@ -3161,27 +3158,7 @@ snapshots:
       enabled: 2.0.0
       kuler: 2.0.0
 
-  '@darksoil-studio/linked-devices-zome@0.400.0-rev.23d64f1ce59822d7e1849d75c2d978cb6a0d62c8(@floating-ui/utils@0.2.9)(@types/react@18.3.18)':
-    dependencies:
-      '@holochain/client': 0.18.0
-      '@lit/context': 1.1.4
-      '@lit/localize': 0.12.2
-      '@mdi/js': 7.4.47
-      '@msgpack/msgpack': 2.8.0
-      '@shoelace-style/shoelace': 2.20.0(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
-      '@tauri-apps/plugin-barcode-scanner': 2.2.0
-      '@tnesh-stack/elements': 0.400.1(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
-      '@tnesh-stack/signals': 0.400.0
-      '@tnesh-stack/utils': 0.400.0
-      js-base64: 3.7.7
-      lit: 3.2.1
-    transitivePeerDependencies:
-      - '@floating-ui/utils'
-      - '@types/react'
-      - bufferutil
-      - utf-8-validate
-
-  '@darksoil-studio/linked-devices-zome@0.400.0-rev.23d64f1ce59822d7e1849d75c2d978cb6a0d62c8(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
+  '@darksoil-studio/linked-devices-zome@0.400.0-rev.3771839e56d9f93f7d5c3f4cb2171b305e98d4f5(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
     dependencies:
       '@holochain/client': 0.18.0
       '@lit/context': 1.1.4
@@ -3201,16 +3178,15 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@darksoil-studio/profiles-zome@0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68(@floating-ui/utils@0.2.9)(@types/react@18.3.18)':
+  '@darksoil-studio/profiles-provider@0.400.1(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
     dependencies:
-      '@darksoil-studio/linked-devices-zome': 0.400.0-rev.23d64f1ce59822d7e1849d75c2d978cb6a0d62c8(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
       '@holochain/client': 0.18.0
       '@lit/context': 1.1.4
       '@lit/localize': 0.12.2
       '@mdi/js': 7.4.47
       '@msgpack/msgpack': 2.8.0
-      '@shoelace-style/shoelace': 2.20.0(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
-      '@tnesh-stack/elements': 0.400.1(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
+      '@shoelace-style/shoelace': 2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
+      '@tnesh-stack/elements': 0.400.1(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@tnesh-stack/signals': 0.400.0
       '@tnesh-stack/utils': 0.400.0
       lit: 3.2.1
@@ -3220,9 +3196,10 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@darksoil-studio/profiles-zome@0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
+  '@darksoil-studio/profiles-zome@0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
     dependencies:
-      '@darksoil-studio/linked-devices-zome': 0.400.0-rev.23d64f1ce59822d7e1849d75c2d978cb6a0d62c8(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
+      '@darksoil-studio/linked-devices-zome': 0.400.0-rev.3771839e56d9f93f7d5c3f4cb2171b305e98d4f5(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
+      '@darksoil-studio/profiles-provider': 0.400.1(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@holochain/client': 0.18.0
       '@lit/context': 1.1.4
       '@lit/localize': 0.12.2
@@ -3241,9 +3218,9 @@ snapshots:
 
   '@docsearch/css@3.8.2': {}
 
-  '@docsearch/js@3.8.2(@algolia/client-search@5.20.3)(@types/react@18.3.18)(search-insights@2.17.3)':
+  '@docsearch/js@3.8.2(@algolia/client-search@5.20.3)(@types/react@19.0.10)(search-insights@2.17.3)':
     dependencies:
-      '@docsearch/react': 3.8.2(@algolia/client-search@5.20.3)(@types/react@18.3.18)(search-insights@2.17.3)
+      '@docsearch/react': 3.8.2(@algolia/client-search@5.20.3)(@types/react@19.0.10)(search-insights@2.17.3)
       preact: 10.26.4
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -3252,14 +3229,14 @@ snapshots:
       - react-dom
       - search-insights
 
-  '@docsearch/react@3.8.2(@algolia/client-search@5.20.3)(@types/react@18.3.18)(search-insights@2.17.3)':
+  '@docsearch/react@3.8.2(@algolia/client-search@5.20.3)(@types/react@19.0.10)(search-insights@2.17.3)':
     dependencies:
       '@algolia/autocomplete-core': 1.17.7(@algolia/client-search@5.20.3)(algoliasearch@5.20.3)(search-insights@2.17.3)
       '@algolia/autocomplete-preset-algolia': 1.17.7(@algolia/client-search@5.20.3)(algoliasearch@5.20.3)
       '@docsearch/css': 3.8.2
       algoliasearch: 5.20.3
     optionalDependencies:
-      '@types/react': 18.3.18
+      '@types/react': 19.0.10
       search-insights: 2.17.3
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -3571,10 +3548,6 @@ snapshots:
     dependencies:
       lit: 3.2.1
 
-  '@lit/react@1.0.7(@types/react@18.3.18)':
-    dependencies:
-      '@types/react': 18.3.18
-
   '@lit/react@1.0.7(@types/react@19.0.10)':
     dependencies:
       '@types/react': 19.0.10
@@ -3723,20 +3696,6 @@ snapshots:
 
   '@shoelace-style/localize@3.2.1': {}
 
-  '@shoelace-style/shoelace@2.20.0(@floating-ui/utils@0.2.9)(@types/react@18.3.18)':
-    dependencies:
-      '@ctrl/tinycolor': 4.1.0
-      '@floating-ui/dom': 1.6.13
-      '@lit/react': 1.0.7(@types/react@18.3.18)
-      '@shoelace-style/animations': 1.2.0
-      '@shoelace-style/localize': 3.2.1
-      composed-offset-position: 0.0.6(@floating-ui/utils@0.2.9)
-      lit: 3.2.1
-      qr-creator: 1.0.0
-    transitivePeerDependencies:
-      - '@floating-ui/utils'
-      - '@types/react'
-
   '@shoelace-style/shoelace@2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
     dependencies:
       '@ctrl/tinycolor': 4.1.0
@@ -3758,23 +3717,6 @@ snapshots:
   '@tauri-apps/plugin-barcode-scanner@2.2.0':
     dependencies:
       '@tauri-apps/api': 2.3.0
-
-  '@tnesh-stack/elements@0.400.1(@floating-ui/utils@0.2.9)(@types/react@18.3.18)':
-    dependencies:
-      '@holo-host/identicon': 0.1.0
-      '@holochain/client': 0.18.0
-      '@lit-labs/router': 0.1.4
-      '@lit/context': 1.1.4
-      '@lit/localize': 0.12.2
-      '@mdi/js': 7.4.47
-      '@shoelace-style/shoelace': 2.20.0(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
-      '@tnesh-stack/utils': 0.400.0
-      lit: 3.2.1
-    transitivePeerDependencies:
-      - '@floating-ui/utils'
-      - '@types/react'
-      - bufferutil
-      - utf-8-validate
 
   '@tnesh-stack/elements@0.400.1(@floating-ui/utils@0.2.9)(@types/react@19.0.10)':
     dependencies:
@@ -3978,13 +3920,6 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/mdurl@2.0.0': {}
-
-  '@types/prop-types@15.7.14': {}
-
-  '@types/react@18.3.18':
-    dependencies:
-      '@types/prop-types': 15.7.14
-      csstype: 3.1.3
 
   '@types/react@19.0.10':
     dependencies:
@@ -5717,17 +5652,17 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  vitepress-plugin-mermaid@2.0.17(mermaid@11.4.1)(vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@18.3.18)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)):
+  vitepress-plugin-mermaid@2.0.17(mermaid@11.4.1)(vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@19.0.10)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)):
     dependencies:
       mermaid: 11.4.1
-      vitepress: 1.6.3(@algolia/client-search@5.20.3)(@types/react@18.3.18)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)
+      vitepress: 1.6.3(@algolia/client-search@5.20.3)(@types/react@19.0.10)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2)
     optionalDependencies:
       '@mermaid-js/mermaid-mindmap': 9.3.0
 
-  vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@18.3.18)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2):
+  vitepress@1.6.3(@algolia/client-search@5.20.3)(@types/react@19.0.10)(postcss@8.5.3)(search-insights@2.17.3)(typescript@5.8.2):
     dependencies:
       '@docsearch/css': 3.8.2
-      '@docsearch/js': 3.8.2(@algolia/client-search@5.20.3)(@types/react@18.3.18)(search-insights@2.17.3)
+      '@docsearch/js': 3.8.2(@algolia/client-search@5.20.3)(@types/react@19.0.10)(search-insights@2.17.3)
       '@iconify-json/simple-icons': 1.2.27
       '@shikijs/core': 2.5.0
       '@shikijs/transformers': 2.5.0
