@@ -34,31 +34,28 @@ pub fn validate_create_link_agent_encrypted_message(
     _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
     // Check the entry type for the given action hash
-    let Some(base_agent) = base_address.clone().into_agent_pub_key() else {
+    let Some(_base_agent) = base_address.clone().into_agent_pub_key() else {
         return Ok(ValidateCallbackResult::Invalid(format!(
             "Base of an AgentEncryptedMessage link must be a profile ActionHash"
         )));
     };
-    if let Some(target_agent) = target_address.clone().into_agent_pub_key() {
-        if base_agent.ne(&target_agent) {
+
+    if base_address.ne(&target_address) {
+        if let Some(encrypted_message_hash) = target_address.into_entry_hash() {
+            let entry = must_get_entry(encrypted_message_hash.clone())?;
+            let Ok(_message) = EncryptedMessage::try_from(entry.content) else {
+                return Ok(ValidateCallbackResult::Invalid(
+                    "Linked action must reference an entry of type EncryptedMessage.".to_string(),
+                ));
+            };
+        } else {
             return Ok(ValidateCallbackResult::Invalid(
-                "Target for an agent encrypted link must equal the base.".to_string(),
+                "Target for an agent encrypted link must be an EntryHash or AgentPubKey."
+                    .to_string(),
             ));
         }
-        Ok(ValidateCallbackResult::Valid)
-    } else if let Some(encrypted_message_hash) = target_address.into_entry_hash() {
-        let entry = must_get_entry(encrypted_message_hash.clone())?;
-        let Ok(_message) = EncryptedMessage::try_from(entry.content) else {
-            return Ok(ValidateCallbackResult::Invalid(
-                "Linked action must reference an entry of type EncryptedMessage.".to_string(),
-            ));
-        };
-        Ok(ValidateCallbackResult::Valid)
-    } else {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Target for an agent encrypted link must be an EntryHash or AgentPubKey.".to_string(),
-        ));
     }
+    Ok(ValidateCallbackResult::Valid)
 }
 
 pub fn validate_delete_link_agent_encrypted_message(

@@ -3,7 +3,9 @@ import { ZomeClient } from '@tnesh-stack/utils';
 
 import { PrivateEventEntry, PrivateEventSourcingSignal } from './types.js';
 
-export class PrivateEventSourcingClient extends ZomeClient<PrivateEventSourcingSignal> {
+export class PrivateEventSourcingClient<ADDITIONAL_SIGNALS> extends ZomeClient<
+	PrivateEventSourcingSignal | ADDITIONAL_SIGNALS
+> {
 	constructor(
 		public client: AppClient,
 		public roleName: string,
