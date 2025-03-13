@@ -215,20 +215,16 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     create_relaxed(app_entry)?;
     emit_signal(Signal::NewPrivateEvent {
         event_hash: entry_hash.clone(),
-        private_event_entry,
+        private_event_entry: private_event_entry.clone(),
     })?;
-    // send_private_event_to_linked_devices_and_recipients::<T>(
-    //     entry_hash.clone(),
-    //     private_event_entry.clone(),
-    // )?;
 
-    // let private_event = T::try_from(private_event_entry.0.event.content.clone())
-    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    // private_event.post_commit(
-    //     entry_hash.clone(),
-    //     private_event_entry.0.author,
-    //     private_event_entry.0.event.timestamp,
-    // )?;
+    let private_event = T::try_from(private_event_entry.0.event.content.clone())
+        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
+    private_event.post_commit(
+        entry_hash.clone(),
+        private_event_entry.0.author,
+        private_event_entry.0.event.timestamp,
+    )?;
 
     Ok(entry_hash)
 }
