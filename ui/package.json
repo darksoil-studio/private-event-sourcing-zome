@@ -1,55 +1,51 @@
 {
-  "name": "@darksoil-studio/private-event-sourcing-zome",
-  "version": "0.400.0",
-  "scripts": {
-    "start": "vite --clearScreen false --port $UI_PORT",
-    "build": "pnpm lint && tsc && pnpm localize:build && pnpm analyze",
-    "lint": "eslint src && prettier \"src/**/*.ts\" --check --ignore-path .gitignore",
-    "format": "eslint src --fix && prettier \"src/**/*.ts\" --write --ignore-path .gitignore",
-    "localize:extract": "lit-localize extract",
-    "localize:build": "lit-localize build",
-    "analyze": "cem analyze --litelement --exclude dist"
-  },
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "locales",
-    "src"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/darksoil-studio/private-event-sourcing-zome.git"
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./dist/*": "./dist/*",
-    "./locales/*": "./locales/*"
-  },
-  "dependencies": {
-    "@holochain/client": "^0.18.0",
-    "@darksoil-studio/profiles-zome": "0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902",
-    "@tnesh-stack/elements": "^0.400.0",
-    "@tnesh-stack/signals": "^0.400.0",
-    "@tnesh-stack/utils": "^0.400.0",
-    "@lit/context": "^1.0.0",
-    "@lit/localize": "^0.12.0",
-    "@mdi/js": "^7.2.0",
-    "@msgpack/msgpack": "^2.8.0",
-    "@shoelace-style/shoelace": "^2.11.0",
-    "lit": "^3.0.0"
-  },
-  "devDependencies": {
-    "@custom-elements-manifest/analyzer": "^0.10.3",
-    "@lit/localize-tools": "^0.6.3",
-    "typescript": "^5.4.5",
-    "tslib": "^2.6.2",
-    "vite": "^4.0.0"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "customElements": "custom-elements.json",
-  "type": "module"
+	"name": "@darksoil-studio/private-event-sourcing-zome",
+	"version": "0.400.0",
+	"scripts": {
+		"start": "vite --clearScreen false --port $UI_PORT",
+		"build": "pnpm lint && tsc && pnpm localize:build && pnpm analyze",
+		"lint": "eslint src && prettier \"src/**/*.ts\" --check --ignore-path .gitignore",
+		"format": "eslint src --fix && prettier \"src/**/*.ts\" --write --ignore-path .gitignore",
+		"localize:extract": "lit-localize extract",
+		"localize:build": "lit-localize build",
+		"analyze": "cem analyze --litelement --exclude dist"
+	},
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": ["dist", "locales", "src"],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/darksoil-studio/private-event-sourcing-zome.git"
+	},
+	"exports": {
+		".": "./dist/index.js",
+		"./dist/*": "./dist/*",
+		"./locales/*": "./locales/*"
+	},
+	"dependencies": {
+		"@holochain/client": "^0.18.0",
+		"@tnesh-stack/elements": "^0.400.0",
+		"@tnesh-stack/signals": "^0.400.0",
+		"@tnesh-stack/utils": "^0.400.0",
+		"@lit/context": "^1.0.0",
+		"@lit/localize": "^0.12.0",
+		"@mdi/js": "^7.2.0",
+		"@msgpack/msgpack": "^2.8.0",
+		"@shoelace-style/shoelace": "^2.11.0",
+		"lit": "^3.0.0"
+	},
+	"devDependencies": {
+		"@darksoil-studio/profiles-zome": "0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902",
+		"@custom-elements-manifest/analyzer": "^0.10.3",
+		"@lit/localize-tools": "^0.6.3",
+		"typescript": "^5.4.5",
+		"tslib": "^2.6.2",
+		"vite": "^4.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"customElements": "custom-elements.json",
+	"type": "module"
 }
