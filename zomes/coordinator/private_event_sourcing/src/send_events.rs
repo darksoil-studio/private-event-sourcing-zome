@@ -33,14 +33,14 @@ pub fn send_events<T: PrivateEvent>(events_hashes: BTreeSet<EntryHash>) -> Exter
 pub fn send_events_to_linked_devices_and_recipients<T: PrivateEvent>(
     events: BTreeMap<EntryHashB64, PrivateEventEntry>,
 ) -> ExternResult<()> {
+    if events.is_empty() {
+        return Ok(());
+    }
+
     debug!(
         "[send_events] Sending events to linked devices and recipients: {:?}",
         events.keys()
     );
-
-    if events.is_empty() {
-        return Ok(());
-    }
 
     let my_linked_devices = query_my_linked_devices()?;
 
