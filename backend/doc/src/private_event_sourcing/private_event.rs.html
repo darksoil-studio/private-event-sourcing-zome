@@ -370,10 +370,6 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -591,22 +587,18 @@
     create_relaxed(app_entry)<span class="question-mark">?</span>;
     emit_signal(Signal::NewPrivateEvent {
         event_hash: entry_hash.clone(),
-        private_event_entry,
+        private_event_entry: private_event_entry.clone(),
     })<span class="question-mark">?</span>;
-    <span class="comment">// send_private_event_to_linked_devices_and_recipients::&lt;T&gt;(
-    //     entry_hash.clone(),
-    //     private_event_entry.clone(),
-    // )?;
 
-    // let private_event = T::try_from(private_event_entry.0.event.content.clone())
-    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    // private_event.post_commit(
-    //     entry_hash.clone(),
-    //     private_event_entry.0.author,
-    //     private_event_entry.0.event.timestamp,
-    // )?;
+    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
+        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
+    private_event.post_commit(
+        entry_hash.clone(),
+        private_event_entry.<span class="number">0</span>.author,
+        private_event_entry.<span class="number">0</span>.event.timestamp,
+    )<span class="question-mark">?</span>;
 
-    </span><span class="prelude-val">Ok</span>(entry_hash)
+    <span class="prelude-val">Ok</span>(entry_hash)
 }
 
 <span class="kw">pub fn </span>query_private_event_entries_by_type(
