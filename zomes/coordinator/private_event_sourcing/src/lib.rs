@@ -57,6 +57,10 @@ pub enum Signal {
         create_link_action: SignedActionHashed,
         link_type: LinkTypes,
     },
+    NewPrivateEvent {
+        event_hash: EntryHash,
+        private_event_entry: PrivateEventEntry,
+    },
     EntryCreated {
         action: SignedActionHashed,
         app_entry: EntryTypes,
@@ -182,14 +186,18 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
                 ))),
             }
         }
-        Action::Create(_create) => {
+        Action::Create(create) => {
             if let Ok(Some(app_entry)) = get_entry_for_action(&action.hashed.hash) {
-                match app_entry {
-                    EntryTypes::PrivateEvent(_entry) => {}
-                    _ => {
-                        emit_signal(Signal::EntryCreated { action, app_entry })?;
+                match app_entry.clone() {
+                    EntryTypes::PrivateEvent(entry) => {
+                        emit_signal(Signal::NewPrivateEvent {
+                            event_hash: create.entry_hash,
+                            private_event_entry: entry,
+                        })?;
                     }
+                    _ => {}
                 };
+                emit_signal(Signal::EntryCreated { action, app_entry })?;
             }
             Ok(())
         }

@@ -1,10 +1,18 @@
-import { AgentPubKey, Signature, Timestamp } from '@holochain/client';
+import {
+	AgentPubKey,
+	EntryHash,
+	Signature,
+	Timestamp,
+} from '@holochain/client';
 import { ActionCommittedSignal } from '@tnesh-stack/utils';
 
-export type PrivateEventSourcingSignal = ActionCommittedSignal<
-	EntryTypes,
-	LinkTypes
->;
+export type PrivateEventSourcingSignal =
+	| ActionCommittedSignal<EntryTypes, LinkTypes>
+	| {
+			type: 'NewPrivateEvent';
+			event_hash: EntryHash;
+			private_event_entry: PrivateEventEntry;
+	  };
 
 export type EntryTypes = { type: 'PrivateEvent' } & PrivateEventEntry;
 

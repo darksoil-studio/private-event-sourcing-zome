@@ -15,11 +15,10 @@ export class PrivateEventSourcingStore<E> {
 			set(entries ? entries : {});
 
 			return this.client.onSignal(signal => {
-				if (!('type' in signal) || signal.type !== 'EntryCreated') return;
-				if (!('app_entry' in signal)) return;
+				if (!('type' in signal) || signal.type !== 'NewPrivateEvent') return;
 
-				entries[encodeHashToBase64(signal.action.hashed.content.entry_hash)] =
-					signal.app_entry;
+				entries[encodeHashToBase64(signal.event_hash)] =
+					signal.private_event_entry;
 				set(entries);
 			});
 		},

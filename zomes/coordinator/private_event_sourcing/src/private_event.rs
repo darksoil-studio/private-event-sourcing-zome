@@ -213,14 +213,8 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     let entry_hash = hash_entry(&private_event_entry)?;
     let app_entry = EntryTypes::PrivateEvent(private_event_entry);
     let action_hash = create_relaxed(app_entry.clone())?;
-    let Some(record) = get(action_hash, GetOptions::local())? else {
-        return Err(wasm_error!(
-            "Unreachable: could not get the record that was just created."
-        ));
-    };
-    emit_signal(Signal::EntryCreated {
-        action: record.signed_action,
-        app_entry,
+    emit_signal(Signal::NewPrivateEvent {
+        private_event_entry,
     })?;
     // send_private_event_to_linked_devices_and_recipients::<T>(
     //     entry_hash.clone(),
