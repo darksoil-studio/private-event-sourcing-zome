@@ -157,14 +157,22 @@ pub fn receive_private_events<T: PrivateEvent>(
         }
 
         let outcome =
-            validate_private_event_entry::<T>(entry_hash.clone().into(), &private_event_entry)?;
+            validate_private_event_entry::<T>(entry_hash.clone().into(), &private_event_entry);
 
         match outcome {
-            ValidateCallbackResult::Valid => {
+            Ok(ValidateCallbackResult::Valid) => {
                 info!("Received a PrivateEvent {entry_hash}.");
                 internal_create_private_event::<T>(private_event_entry)?;
             }
-            ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
+            Ok(ValidateCallbackResult::Invalid(reason)) => {
+                warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
+                return Err(wasm_error!(
+                    "Invalid PrivateEvent {}: {}.",
+                    entry_hash,
+                    reason
+                ));
+            }
+            Ok(ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies)) => {
                 info!(
                     "Received a PrivateEvent {entry_hash} but we don't have all its dependencies: adding it to the awaiting dependencies queue."
                 );
@@ -173,13 +181,14 @@ pub fn receive_private_events<T: PrivateEvent>(
                     unresolved_dependencies,
                 }))?;
             }
-            ValidateCallbackResult::Invalid(reason) => {
-                warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
-                return Err(wasm_error!(
-                    "Invalid PrivateEvent {}: {}.",
-                    entry_hash,
-                    reason
-                ));
+            Err(_) => {
+                info!(
+                    "Received a PrivateEvent {entry_hash} but its validation failed: adding it to the awaiting dependencies queue."
+                );
+                create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
+                    event: private_event_entry,
+                    unresolved_dependencies: UnresolvedDependencies::Hashes(vec![]),
+                }))?;
             }
         }
     }
