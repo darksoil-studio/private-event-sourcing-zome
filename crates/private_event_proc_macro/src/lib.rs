@@ -37,6 +37,11 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
             private_event_sourcing::send_events::<#ident>(events_hashes)
         }
 
+        #[hdk_extern]
+        pub fn commit_my_pending_encrypted_messages() -> ExternResult<()> {
+            private_event_sourcing::commit_my_pending_encrypted_messages::<#ident>()
+        }
+
         #[hdk_extern(infallible)]
         fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
             if let Err(err) = private_event_sourcing::scheduled_tasks::<#ident>() {

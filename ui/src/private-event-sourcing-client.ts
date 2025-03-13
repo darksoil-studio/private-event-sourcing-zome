@@ -16,6 +16,10 @@ export class PrivateEventSourcingClient extends ZomeClient<PrivateEventSourcingS
 		return this.callZome('query_private_event_entries', undefined);
 	}
 
+	async commitMyPendingEncryptedMessages(): Promise<void> {
+		return this.callZome('commit_my_pending_encrypted_messages', undefined);
+	}
+
 	synchronizeWithLinkedDevice(linkedDevice: AgentPubKey) {
 		return this.callZome('synchronize_with_linked_device', undefined);
 	}
