@@ -7,7 +7,7 @@ import { PrivateEventEntry, SignedEvent } from './types.js';
 import { asyncReadable } from './utils.js';
 
 export class PrivateEventSourcingStore<E> {
-	constructor(public client: PrivateEventSourcingClient) {}
+	constructor(public client: PrivateEventSourcingClient<object>) {}
 
 	privateEventEntries = asyncReadable<Record<EntryHashB64, PrivateEventEntry>>(
 		async set => {
@@ -15,10 +15,10 @@ export class PrivateEventSourcingStore<E> {
 			set(entries ? entries : {});
 
 			return this.client.onSignal(signal => {
-				if (signal.type !== 'EntryCreated') return;
+				if (!('type' in signal) || signal.type !== 'NewPrivateEvent') return;
 
-				entries[encodeHashToBase64(signal.action.hashed.content.entry_hash)] =
-					signal.app_entry;
+				entries[encodeHashToBase64(signal.event_hash)] =
+					signal.private_event_entry;
 				set(entries);
 			});
 		},

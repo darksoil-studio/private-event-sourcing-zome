@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { PrivateEventSourcingClient } from '../../ui/src/private-event-sourcing-client.js';
 import { PrivateEventSourcingStore } from '../../ui/src/private-event-sourcing-store.js';
 
-const testHappUrl =
+export const testHappUrl =
 	dirname(fileURLToPath(import.meta.url)) +
 	'/../../workdir/private-event-sourcing_test.happ';
 

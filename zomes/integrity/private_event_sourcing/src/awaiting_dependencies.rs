@@ -21,7 +21,7 @@ pub fn validate_update_awaiting_dependencies(
     _event: AwaitingDependencies,
 ) -> ExternResult<ValidateCallbackResult> {
     Ok(ValidateCallbackResult::Invalid(format!(
-        "PrivateEvents cannot be updated"
+        "AwaitingDependencies cannot be updated"
     )))
 }
 

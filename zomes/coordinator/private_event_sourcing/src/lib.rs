@@ -11,19 +11,20 @@ mod linked_devices;
 pub use linked_devices::*;
 mod private_event;
 pub use private_event::*;
-mod synchronize;
-pub use synchronize::synchronize_with_linked_devices;
+mod event_history;
 mod utils;
+pub use event_history::*;
+mod send_events;
+pub use send_events::send_events;
 
+use send_events::synchronize_all_entries;
 pub use strum::IntoStaticStr;
 
 pub use private_event_proc_macro::*;
-use synchronize::syncronize_with_recipients;
 
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
     commit_my_pending_encrypted_messages::<T>()?;
-    synchronize_with_linked_devices()?;
-    syncronize_with_recipients::<T>()?;
+    synchronize_all_entries::<T>()?;
     Ok(())
 }
 
@@ -56,6 +57,10 @@ pub enum Signal {
         create_link_action: SignedActionHashed,
         link_type: LinkTypes,
     },
+    NewPrivateEvent {
+        event_hash: EntryHash,
+        private_event_entry: PrivateEventEntry,
+    },
     EntryCreated {
         action: SignedActionHashed,
         app_entry: EntryTypes,
@@ -73,8 +78,8 @@ pub enum Signal {
 
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 pub enum PrivateEventSourcingRemoteSignal {
-    NewPrivateEvent(PrivateEventEntry),
-    SynchronizeEntriesWithLinkedDevice(BTreeMap<EntryHashB64, PrivateEventEntry>),
+    SendPrivateEvents(BTreeMap<EntryHashB64, PrivateEventEntry>),
+    // SynchronizeEntriesWithLinkedDevice(BTreeMap<EntryHashB64, PrivateEventEntry>),
 }
 
 pub fn recv_private_events_remote_signal<T: PrivateEvent>(
@@ -82,17 +87,62 @@ pub fn recv_private_events_remote_signal<T: PrivateEvent>(
 ) -> ExternResult<()> {
     let provenance = call_info()?.provenance;
     match signal {
-        PrivateEventSourcingRemoteSignal::NewPrivateEvent(private_event_entry) => {
-            receive_private_event::<T>(provenance, private_event_entry)
+        PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) => {
+            receive_private_events::<T>(provenance, private_event_entries)
         }
-        PrivateEventSourcingRemoteSignal::SynchronizeEntriesWithLinkedDevice(
-            private_event_entries,
-        ) => receive_private_events::<T>(provenance, private_event_entries),
     }
+}
+
+pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternResult<()> {
+    let private_event_entry_type = UnitEntryTypes::PrivateEvent
+        .try_into()
+        .expect("Can't convert UnitEntryTypes::PrivateEvent to EntryTypes.");
+    let new_private_event_hashes: BTreeSet<EntryHash> = committed_actions
+        .iter()
+        .into_iter()
+        .filter_map(|action| match action.action() {
+            Action::Create(create) => Some(create.clone()),
+            _ => None,
+        })
+        .filter(|create| create.entry_type.eq(&private_event_entry_type))
+        .map(|create| create.entry_hash)
+        .collect();
+
+    if new_private_event_hashes.len() > 0 {
+        let result = call_remote(
+            agent_info()?.agent_latest_pubkey,
+            zome_info()?.name,
+            "send_events".into(),
+            None,
+            new_private_event_hashes,
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!("Error calling 'send_events': {:?}", result));
+        };
+        let result = call_remote(
+            agent_info()?.agent_latest_pubkey,
+            zome_info()?.name,
+            "attempt_commit_awaiting_deps_entries".into(),
+            None,
+            (),
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!(
+                "Error calling 'attempt_commit_awaiting_deps_entries': {:?}",
+                result
+            ));
+        };
+    }
+
+    Ok(())
 }
 
 #[hdk_extern(infallible)]
 pub fn post_commit(committed_actions: Vec<SignedActionHashed>) {
+    if let Err(err) = call_send_events(&committed_actions) {
+        error!("Error calling send events: {:?}", err);
+    }
+
     for action in committed_actions {
         if let Err(err) = signal_action(action) {
             error!("Error signaling new action: {:?}", err);
@@ -136,26 +186,18 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
                 ))),
             }
         }
-        Action::Create(_create) => {
+        Action::Create(create) => {
             if let Ok(Some(app_entry)) = get_entry_for_action(&action.hashed.hash) {
-                match app_entry {
+                match app_entry.clone() {
                     EntryTypes::PrivateEvent(entry) => {
-                        // TODO: change this to only be called once per all actions
-                        let result = call_remote(
-                            agent_info()?.agent_latest_pubkey,
-                            zome_info()?.name,
-                            "attempt_commit_awaiting_deps_entries".into(),
-                            None,
-                            (),
-                        )?;
-                        let ZomeCallResponse::Ok(_) = result else {
-                            return Err(wasm_error!(
-                                "Error calling 'attempt_commit_awaiting_deps_entries'"
-                            ));
-                        };
+                        emit_signal(Signal::NewPrivateEvent {
+                            event_hash: create.entry_hash,
+                            private_event_entry: entry,
+                        })?;
                     }
                     _ => {}
                 };
+                emit_signal(Signal::EntryCreated { action, app_entry })?;
             }
             Ok(())
         }

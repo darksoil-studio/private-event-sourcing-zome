@@ -19,7 +19,7 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
         let entry_hash = hash_entry(&private_event_entry)?;
 
         if !private_messenger_entries.contains_key(&entry_hash.clone().into()) {
-            let valid = validate_private_event_entry::<T>(&private_event_entry)?;
+            let valid = validate_private_event_entry::<T>(entry_hash, &private_event_entry)?;
 
             match valid {
                 ValidateCallbackResult::Valid => {

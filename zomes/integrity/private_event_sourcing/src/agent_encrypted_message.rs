@@ -2,7 +2,10 @@ use hdi::prelude::*;
 
 #[hdk_entry_helper]
 #[derive(Clone)]
-pub struct EncryptedMessage(pub SerializedBytes);
+pub struct EncryptedMessage {
+    pub encrypted_entries: XSalsa20Poly1305EncryptedData,
+    pub entry_hashes: BTreeSet<EntryHashB64>,
+}
 
 pub fn validate_create_encrypted_message(
     _action: EntryCreationAction,
@@ -31,30 +34,27 @@ pub fn validate_create_link_agent_encrypted_message(
     _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
     // Check the entry type for the given action hash
-    let Some(_agent) = base_address.clone().into_agent_pub_key() else {
+    let Some(_base_agent) = base_address.clone().into_agent_pub_key() else {
         return Ok(ValidateCallbackResult::Invalid(format!(
             "Base of an AgentEncryptedMessage link must be a profile ActionHash"
         )));
     };
 
-    // Check the entry type for the given action hash
-    let Some(_encrypted_message_hash) = target_address.into_entry_hash() else {
-        return Ok(ValidateCallbackResult::Invalid(
-            "No action hash associated with link".to_string(),
-        ));
-    };
-    // let entry = must_get_entry(encrypted_message_hash.clone())?;
-    // let Ok(message) = EncryptedMessage::try_from(entry.content) else {
-    //     return Ok(ValidateCallbackResult::Invalid(
-    //         "Linked action must reference an entry of type EncryptedMessage".to_string(),
-    //     ));
-    // };
-    // if message.recipient.ne(&agent) {
-    //     return Ok(ValidateCallbackResult::Invalid(
-    //         "Recipient for an EncryptedMessage must be the base address of an AgentToEncryptedMessage entry".to_string(),
-    //     ));
-    // }
-
+    if base_address.ne(&target_address) {
+        if let Some(encrypted_message_hash) = target_address.into_entry_hash() {
+            let entry = must_get_entry(encrypted_message_hash.clone())?;
+            let Ok(_message) = EncryptedMessage::try_from(entry.content) else {
+                return Ok(ValidateCallbackResult::Invalid(
+                    "Linked action must reference an entry of type EncryptedMessage.".to_string(),
+                ));
+            };
+        } else {
+            return Ok(ValidateCallbackResult::Invalid(
+                "Target for an agent encrypted link must be an EntryHash or AgentPubKey."
+                    .to_string(),
+            ));
+        }
+    }
     Ok(ValidateCallbackResult::Valid)
 }
 
