@@ -23,6 +23,6 @@ export class PrivateEventSourcingClient<ADDITIONAL_SIGNALS> extends ZomeClient<
 	}
 
 	synchronizeWithLinkedDevice(linkedDevice: AgentPubKey) {
-		return this.callZome('synchronize_with_linked_device', undefined);
+		return this.callZome('synchronize_with_linked_device', linkedDevice);
 	}
 }

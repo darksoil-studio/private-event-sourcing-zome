@@ -166,7 +166,7 @@ pub fn receive_private_events<T: PrivateEvent>(
             }
             ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
                 info!(
-                    "Received a PrivateEvent {entry_hash} but we don't have all its dependencies."
+                    "Received a PrivateEvent {entry_hash} but we don't have all its dependencies: adding it to the awaiting dependencies queue."
                 );
                 create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
                     event: private_event_entry,
@@ -174,6 +174,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 }))?;
             }
             ValidateCallbackResult::Invalid(reason) => {
+                warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
                 return Err(wasm_error!(
                     "Invalid PrivateEvent {}: {}.",
                     entry_hash,
