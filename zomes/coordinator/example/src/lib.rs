@@ -71,18 +71,6 @@ pub fn query_friends() -> ExternResult<BTreeSet<AgentPubKey>> {
 }
 
 #[hdk_extern]
-pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
-    private_event_sourcing::attempt_commit_awaiting_deps_entries::<Event>()?;
-
-    Ok(())
-}
-
-#[hdk_extern]
-pub fn send_events(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
-    private_event_sourcing::send_events::<Event>(events_hashes)
-}
-
-#[hdk_extern]
 pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     if let Ok(private_event_sourcing_remote_signal) =
         PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
@@ -91,15 +79,6 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     } else {
         Ok(())
     }
-}
-
-#[hdk_extern(infallible)]
-fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = private_event_sourcing::scheduled_tasks::<Event>() {
-        error!("Failed to perform scheduled tasks: {err:?}");
-    }
-
-    Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
 }
 
 #[hdk_extern]

@@ -14,9 +14,17 @@ use crate::{
 pub fn send_events<T: PrivateEvent>(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
     let entries = query_private_event_entries(())?;
 
+    let my_pub_key = agent_info()?.agent_latest_pubkey;
+    let now = sys_time()?.as_millis();
+
     let filtered_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = entries
         .into_iter()
         .filter(|(key, _value)| events_hashes.contains(&EntryHash::from(key.clone())))
+        .filter(|(_key, value)| {
+            let elapsed = now - value.0.event.timestamp.as_millis();
+            let entry_was_committed_less_than_10_seconds_ago = elapsed < 10 * 1000;
+            value.0.author.eq(&my_pub_key) || !entry_was_committed_less_than_10_seconds_ago
+        })
         .collect();
 
     send_events_to_linked_devices_and_recipients::<T>(filtered_entries)
@@ -29,6 +37,10 @@ pub fn send_events_to_linked_devices_and_recipients<T: PrivateEvent>(
         "[send_events] Sending events to linked devices and recipients: {:?}",
         events.keys()
     );
+
+    if events.is_empty() {
+        return Ok(());
+    }
 
     let my_linked_devices = query_my_linked_devices()?;
 

@@ -51,26 +51,6 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
         Ok(())
     }
 }
-
-#[hdk_extern]
-pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
-    private_event_sourcing::attempt_commit_awaiting_deps_entries::<ZOME_NAMEEvent>()
-}
-
-#[hdk_extern]
-pub fn send_event(event_hash: EntryHash) -> ExternResult<()> {
-    private_event_sourcing::send_event::<ZOME_NAMEEvent>(event_hash)
-}
-
-#[hdk_extern(infallible)]
-fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
-    if let Err(err) = private_event_sourcing::scheduled_tasks::<ZOME_NAMEEvent>() {
-        error!("Failed to perform scheduled tasks: {err:?}");
-    }
-
-    Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
-}
-
 ```
 
 That's it! You have now integrated the `private_event_sourcing` coordinator and integrity zomes and their UI into your app!
