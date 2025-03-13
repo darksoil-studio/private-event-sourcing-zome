@@ -2,7 +2,12 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 use std::collections::BTreeMap;
 
-use crate::{linked_devices::query_my_linked_devices, send_events, utils::create_relaxed, Signal};
+use crate::{
+    linked_devices::query_my_linked_devices,
+    send_events::{self, send_events_to_linked_devices_and_recipients},
+    utils::create_relaxed,
+    Signal,
+};
 
 pub trait EventType {
     fn event_type(&self) -> String;
@@ -88,7 +93,14 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
 pub fn send_private_events_to_new_recipients<T: PrivateEvent>(
     events_hashes: BTreeSet<EntryHash>,
 ) -> ExternResult<()> {
-    send_events::<T>(events_hashes)
+    let entries = query_private_event_entries(())?;
+
+    let filtered_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = entries
+        .into_iter()
+        .filter(|(key, _value)| events_hashes.contains(&EntryHash::from(key.clone())))
+        .collect();
+
+    send_events_to_linked_devices_and_recipients::<T>(filtered_entries)
 }
 
 pub fn validate_private_event_entry<T: PrivateEvent>(
@@ -173,7 +185,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 ));
             }
             Ok(ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies)) => {
-                info!(
+                warn!(
                     "Received a PrivateEvent {entry_hash} but we don't have all its dependencies: adding it to the awaiting dependencies queue."
                 );
                 create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
@@ -182,7 +194,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 }))?;
             }
             Err(_) => {
-                info!(
+                warn!(
                     "Received a PrivateEvent {entry_hash} but its validation failed: adding it to the awaiting dependencies queue."
                 );
                 create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
