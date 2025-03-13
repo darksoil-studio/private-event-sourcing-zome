@@ -186,7 +186,9 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
             if let Ok(Some(app_entry)) = get_entry_for_action(&action.hashed.hash) {
                 match app_entry {
                     EntryTypes::PrivateEvent(_entry) => {}
-                    _ => {}
+                    _ => {
+                        emit_signal(Signal::EntryCreated { action, app_entry })?;
+                    }
                 };
             }
             Ok(())
