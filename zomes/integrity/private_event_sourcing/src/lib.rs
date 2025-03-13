@@ -9,6 +9,12 @@ pub use private_event::*;
 mod awaiting_dependencies;
 pub use awaiting_dependencies::*;
 
+mod event_history;
+pub use event_history::*;
+
+mod event_history_summary;
+pub use event_history_summary::*;
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 #[hdk_entry_types]
@@ -19,6 +25,9 @@ pub enum EntryTypes {
     AwaitingDependencies(AwaitingDependencies),
     #[entry_type(visibility = "private")]
     PrivateEvent(PrivateEventEntry),
+    #[entry_type(visibility = "private")]
+    EventHistory(EventHistory),
+    EventHistorySummary(EventHistorySummary),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -94,6 +103,16 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         encrypted_message,
                     )
                 }
+                EntryTypes::EventHistory(event_history) => validate_create_event_history(
+                    EntryCreationAction::Create(action),
+                    event_history,
+                ),
+                EntryTypes::EventHistorySummary(event_history_summary) => {
+                    validate_create_event_history_summary(
+                        EntryCreationAction::Create(action),
+                        event_history_summary,
+                    )
+                }
             },
             OpEntry::UpdateEntry {
                 app_entry, action, ..
@@ -114,6 +133,16 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         encrypted_message,
                     )
                 }
+                EntryTypes::EventHistory(event_history) => validate_create_event_history(
+                    EntryCreationAction::Update(action),
+                    event_history,
+                ),
+                EntryTypes::EventHistorySummary(event_history_summary) => {
+                    validate_create_event_history_summary(
+                        EntryCreationAction::Update(action),
+                        event_history_summary,
+                    )
+                }
             },
             _ => Ok(ValidateCallbackResult::Valid),
         },
@@ -127,6 +156,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                 }
                 EntryTypes::EncryptedMessage(encrypted_message) => {
                     validate_update_encrypted_message(action, encrypted_message)
+                }
+                EntryTypes::EventHistory(_event_history) => validate_update_event_history(action),
+                EntryTypes::EventHistorySummary(_event_history_summary) => {
+                    validate_update_event_history_summary(action)
                 }
             },
             _ => Ok(ValidateCallbackResult::Valid),
@@ -179,6 +212,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     validate_delete_awaiting_dependencies(action)
                 }
                 EntryTypes::EncryptedMessage(_) => validate_delete_encrypted_message(action),
+                EntryTypes::EventHistory(_) => validate_delete_event_history(action),
+                EntryTypes::EventHistorySummary(_) => validate_delete_event_history_summary(action),
             }
         }
         FlatOp::RegisterCreateLink {
@@ -230,6 +265,16 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         encrypted_message,
                     )
                 }
+                EntryTypes::EventHistory(event_history) => validate_create_event_history(
+                    EntryCreationAction::Create(action),
+                    event_history,
+                ),
+                EntryTypes::EventHistorySummary(event_history_summary) => {
+                    validate_create_event_history_summary(
+                        EntryCreationAction::Create(action),
+                        event_history_summary,
+                    )
+                }
             },
             OpRecord::UpdateEntry {
                 app_entry, action, ..
@@ -263,6 +308,26 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         return Ok(result);
                     };
                     validate_update_encrypted_message(action, encrypted_message)
+                }
+                EntryTypes::EventHistory(event_history) => {
+                    let result = validate_create_event_history(
+                        EntryCreationAction::Update(action.clone()),
+                        event_history,
+                    )?;
+                    let ValidateCallbackResult::Valid = result else {
+                        return Ok(result);
+                    };
+                    validate_update_event_history(action)
+                }
+                EntryTypes::EventHistorySummary(event_history_summary) => {
+                    let result = validate_create_event_history_summary(
+                        EntryCreationAction::Update(action.clone()),
+                        event_history_summary,
+                    )?;
+                    let ValidateCallbackResult::Valid = result else {
+                        return Ok(result);
+                    };
+                    validate_update_event_history_summary(action)
                 }
             },
             OpRecord::DeleteEntry {
@@ -317,6 +382,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         validate_delete_awaiting_dependencies(action)
                     }
                     EntryTypes::EncryptedMessage(_) => validate_delete_encrypted_message(action),
+                    EntryTypes::EventHistory(_) => validate_delete_event_history(action),
+                    EntryTypes::EventHistorySummary(_) => {
+                        validate_delete_event_history_summary(action)
+                    }
                 }
             }
             OpRecord::CreateLink {
