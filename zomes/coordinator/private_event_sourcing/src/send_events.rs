@@ -175,3 +175,16 @@ fn get_private_events_already_sent_to(agent: &AgentPubKey) -> ExternResult<BTree
 
     Ok(entry_hashes)
 }
+
+#[hdk_extern]
+pub fn synchronize_with_linked_device(linked_device: AgentPubKey) -> ExternResult<()> {
+    let entries = query_private_event_entries(())?;
+
+    send_remote_signal(
+        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(entries))
+            .map_err(|err| wasm_error!(err))?,
+        vec![linked_device],
+    )?;
+
+    Ok(())
+}
