@@ -92,7 +92,21 @@
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing::<span class="kw-2">*</span>;
 
 <span class="attr">#[private_event]
@@ -110,25 +124,27 @@
 <span class="kw">impl </span>PrivateEvent <span class="kw">for </span>Event {
     <span class="kw">fn </span>validate(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        author: AgentPubKey,
-        timestamp: Timestamp,
+        _entry_hash: EntryHash,
+        _author: AgentPubKey,
+        _timestamp: Timestamp,
     ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
         <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
     }
 
     <span class="kw">fn </span>recipients(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        author: AgentPubKey,
-        timestamp: Timestamp,
-    ) -&gt; ExternResult&lt;Vec&lt;AgentPubKey&gt;&gt; {
+        _entry_hash: EntryHash,
+        _author: AgentPubKey,
+        _timestamp: Timestamp,
+    ) -&gt; ExternResult&lt;BTreeSet&lt;AgentPubKey&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             Event::SharedEntry { recipient, .. } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>recipients = query_friends()<span class="question-mark">?</span>;
                 recipients.insert(recipient.clone());
 
-                <span class="prelude-val">Ok</span>(recipients.into_iter().collect())
+                <span class="prelude-val">Ok</span>(recipients)
             }
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[]),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(BTreeSet::new()),
         }
     }
 }
@@ -161,13 +177,6 @@
 }
 
 <span class="attr">#[hdk_extern]
-</span><span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries() -&gt; ExternResult&lt;()&gt; {
-    private_event_sourcing::attempt_commit_awaiting_deps_entries::&lt;Event&gt;()<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(())
-}
-
-<span class="attr">#[hdk_extern]
 </span><span class="kw">pub fn </span>recv_remote_signal(signal_bytes: SerializedBytes) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">if let </span><span class="prelude-val">Ok</span>(private_event_sourcing_remote_signal) =
         PrivateEventSourcingRemoteSignal::try_from(signal_bytes)
@@ -178,12 +187,27 @@
     }
 }
 
-<span class="attr">#[hdk_extern(infallible)]
-</span><span class="kw">fn </span>scheduled_tasks(<span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;Schedule&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Schedule&gt; {
-    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = private_event_sourcing::scheduled_tasks::&lt;Event&gt;() {
-        <span class="macro">error!</span>(<span class="string">"Failed to perform scheduled tasks: {err:?}"</span>);
-    }
+<span class="attr">#[hdk_extern]
+</span><span class="kw">pub fn </span>migrate_from_old_cell(old_cell: CellId) -&gt; ExternResult&lt;()&gt; {
+    <span class="kw">let </span>response = call(
+        CallTargetCell::OtherCell(old_cell),
+        zome_info()<span class="question-mark">?</span>.name,
+        <span class="string">"query_private_event_entries"</span>.into(),
+        <span class="prelude-val">None</span>,
+        (),
+    )<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Some</span>(Schedule::Persisted(<span class="string">"*/30 * * * * * *"</span>.into())) <span class="comment">// Every 30 seconds
-</span>}
+    <span class="kw">let </span>ZomeCallResponse::Ok(result) = response <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
+            <span class="string">"Error quering the old private event entries: {:?}."</span>,
+            response
+        ));
+    };
+    <span class="kw">let </span>private_event_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; =
+        result.decode().map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
+
+    import_events(private_event_entries)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(())
+}
 </code></pre></div></section></main></body></html>

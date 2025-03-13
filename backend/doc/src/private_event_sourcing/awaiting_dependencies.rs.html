@@ -88,7 +88,7 @@
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>!private_messenger_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash.clone().into()) {
-            <span class="kw">let </span>valid = validate_private_event_entry::&lt;T&gt;(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
+            <span class="kw">let </span>valid = validate_private_event_entry::&lt;T&gt;(entry_hash, <span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
             <span class="kw">match </span>valid {
                 ValidateCallbackResult::Valid =&gt; {

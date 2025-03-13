@@ -85,7 +85,10 @@
 
 <span class="attr">#[hdk_entry_helper]
 #[derive(Clone)]
-</span><span class="kw">pub struct </span>EncryptedMessage(<span class="kw">pub </span>SerializedBytes);
+</span><span class="kw">pub struct </span>EncryptedMessage {
+    <span class="kw">pub </span>encrypted_entries: XSalsa20Poly1305EncryptedData,
+    <span class="kw">pub </span>entry_hashes: BTreeSet&lt;EntryHashB64&gt;,
+}
 
 <span class="kw">pub fn </span>validate_create_encrypted_message(
     _action: EntryCreationAction,
@@ -114,31 +117,28 @@
     _tag: LinkTag,
 ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
     <span class="comment">// Check the entry type for the given action hash
-    </span><span class="kw">let </span><span class="prelude-val">Some</span>(_agent) = base_address.clone().into_agent_pub_key() <span class="kw">else </span>{
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(_base_agent) = base_address.clone().into_agent_pub_key() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
             <span class="string">"Base of an AgentEncryptedMessage link must be a profile ActionHash"
         </span>)));
     };
 
-    <span class="comment">// Check the entry type for the given action hash
-    </span><span class="kw">let </span><span class="prelude-val">Some</span>(_encrypted_message_hash) = target_address.into_entry_hash() <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
-            <span class="string">"No action hash associated with link"</span>.to_string(),
-        ));
-    };
-    <span class="comment">// let entry = must_get_entry(encrypted_message_hash.clone())?;
-    // let Ok(message) = EncryptedMessage::try_from(entry.content) else {
-    //     return Ok(ValidateCallbackResult::Invalid(
-    //         "Linked action must reference an entry of type EncryptedMessage".to_string(),
-    //     ));
-    // };
-    // if message.recipient.ne(&amp;agent) {
-    //     return Ok(ValidateCallbackResult::Invalid(
-    //         "Recipient for an EncryptedMessage must be the base address of an AgentToEncryptedMessage entry".to_string(),
-    //     ));
-    // }
-
-    </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
+    <span class="kw">if </span>base_address.ne(<span class="kw-2">&amp;</span>target_address) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(encrypted_message_hash) = target_address.into_entry_hash() {
+            <span class="kw">let </span>entry = must_get_entry(encrypted_message_hash.clone())<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(_message) = EncryptedMessage::try_from(entry.content) <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
+                    <span class="string">"Linked action must reference an entry of type EncryptedMessage."</span>.to_string(),
+                ));
+            };
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(
+                <span class="string">"Target for an agent encrypted link must be an EntryHash or AgentPubKey."
+                    </span>.to_string(),
+            ));
+        }
+    }
+    <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid)
 }
 
 <span class="kw">pub fn </span>validate_delete_link_agent_encrypted_message(

@@ -211,6 +211,48 @@
 <a href="#211" id="211">211</a>
 <a href="#212" id="212">212</a>
 <a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
@@ -224,19 +266,20 @@
 <span class="kw">pub use </span>linked_devices::<span class="kw-2">*</span>;
 <span class="kw">mod </span>private_event;
 <span class="kw">pub use </span>private_event::<span class="kw-2">*</span>;
-<span class="kw">mod </span>synchronize;
-<span class="kw">pub use </span>synchronize::synchronize_with_linked_devices;
+<span class="kw">mod </span>event_history;
 <span class="kw">mod </span>utils;
+<span class="kw">pub use </span>event_history::<span class="kw-2">*</span>;
+<span class="kw">mod </span>send_events;
+<span class="kw">pub use </span>send_events::send_events;
 
+<span class="kw">use </span>send_events::synchronize_all_entries;
 <span class="kw">pub use </span>strum::IntoStaticStr;
 
 <span class="kw">pub use </span>private_event_proc_macro::<span class="kw-2">*</span>;
-<span class="kw">use </span>synchronize::syncronize_with_recipients;
 
 <span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
     commit_my_pending_encrypted_messages::&lt;T&gt;()<span class="question-mark">?</span>;
-    synchronize_with_linked_devices()<span class="question-mark">?</span>;
-    syncronize_with_recipients::&lt;T&gt;()<span class="question-mark">?</span>;
+    synchronize_all_entries::&lt;T&gt;()<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -269,6 +312,10 @@
         create_link_action: SignedActionHashed,
         link_type: LinkTypes,
     },
+    NewPrivateEvent {
+        event_hash: EntryHash,
+        private_event_entry: PrivateEventEntry,
+    },
     EntryCreated {
         action: SignedActionHashed,
         app_entry: EntryTypes,
@@ -286,26 +333,71 @@
 
 <span class="attr">#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 </span><span class="kw">pub enum </span>PrivateEventSourcingRemoteSignal {
-    NewPrivateEvent(PrivateEventEntry),
-    SynchronizeEntriesWithLinkedDevice(BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;),
-}
+    SendPrivateEvents(BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;),
+    <span class="comment">// SynchronizeEntriesWithLinkedDevice(BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;),
+</span>}
 
 <span class="kw">pub fn </span>recv_private_events_remote_signal&lt;T: PrivateEvent&gt;(
     signal: PrivateEventSourcingRemoteSignal,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>provenance = call_info()<span class="question-mark">?</span>.provenance;
     <span class="kw">match </span>signal {
-        PrivateEventSourcingRemoteSignal::NewPrivateEvent(private_event_entry) =&gt; {
-            receive_private_event::&lt;T&gt;(provenance, private_event_entry)
+        PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) =&gt; {
+            receive_private_events::&lt;T&gt;(provenance, private_event_entries)
         }
-        PrivateEventSourcingRemoteSignal::SynchronizeEntriesWithLinkedDevice(
-            private_event_entries,
-        ) =&gt; receive_private_events::&lt;T&gt;(provenance, private_event_entries),
     }
+}
+
+<span class="kw">pub fn </span>call_send_events(committed_actions: <span class="kw-2">&amp;</span>Vec&lt;SignedActionHashed&gt;) -&gt; ExternResult&lt;()&gt; {
+    <span class="kw">let </span>private_event_entry_type = UnitEntryTypes::PrivateEvent
+        .try_into()
+        .expect(<span class="string">"Can't convert UnitEntryTypes::PrivateEvent to EntryTypes."</span>);
+    <span class="kw">let </span>new_private_event_hashes: BTreeSet&lt;EntryHash&gt; = committed_actions
+        .iter()
+        .into_iter()
+        .filter_map(|action| <span class="kw">match </span>action.action() {
+            Action::Create(create) =&gt; <span class="prelude-val">Some</span>(create.clone()),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+        .filter(|create| create.entry_type.eq(<span class="kw-2">&amp;</span>private_event_entry_type))
+        .map(|create| create.entry_hash)
+        .collect();
+
+    <span class="kw">if </span>new_private_event_hashes.len() &gt; <span class="number">0 </span>{
+        <span class="kw">let </span>result = call_remote(
+            agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
+            zome_info()<span class="question-mark">?</span>.name,
+            <span class="string">"send_events"</span>.into(),
+            <span class="prelude-val">None</span>,
+            new_private_event_hashes,
+        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
+        };
+        <span class="kw">let </span>result = call_remote(
+            agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
+            zome_info()<span class="question-mark">?</span>.name,
+            <span class="string">"attempt_commit_awaiting_deps_entries"</span>.into(),
+            <span class="prelude-val">None</span>,
+            (),
+        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
+                <span class="string">"Error calling 'attempt_commit_awaiting_deps_entries': {:?}"</span>,
+                result
+            ));
+        };
+    }
+
+    <span class="prelude-val">Ok</span>(())
 }
 
 <span class="attr">#[hdk_extern(infallible)]
 </span><span class="kw">pub fn </span>post_commit(committed_actions: Vec&lt;SignedActionHashed&gt;) {
+    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = call_send_events(<span class="kw-2">&amp;</span>committed_actions) {
+        <span class="macro">error!</span>(<span class="string">"Error calling send events: {:?}"</span>, err);
+    }
+
     <span class="kw">for </span>action <span class="kw">in </span>committed_actions {
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = signal_action(action) {
             <span class="macro">error!</span>(<span class="string">"Error signaling new action: {:?}"</span>, err);
@@ -349,26 +441,18 @@
                 ))),
             }
         }
-        Action::Create(_create) =&gt; {
+        Action::Create(create) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(app_entry)) = get_entry_for_action(<span class="kw-2">&amp;</span>action.hashed.hash) {
-                <span class="kw">match </span>app_entry {
+                <span class="kw">match </span>app_entry.clone() {
                     EntryTypes::PrivateEvent(entry) =&gt; {
-                        <span class="comment">// TODO: change this to only be called once per all actions
-                        </span><span class="kw">let </span>result = call_remote(
-                            agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
-                            zome_info()<span class="question-mark">?</span>.name,
-                            <span class="string">"attempt_commit_awaiting_deps_entries"</span>.into(),
-                            <span class="prelude-val">None</span>,
-                            (),
-                        )<span class="question-mark">?</span>;
-                        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
-                                <span class="string">"Error calling 'attempt_commit_awaiting_deps_entries'"
-                            </span>));
-                        };
+                        emit_signal(Signal::NewPrivateEvent {
+                            event_hash: create.entry_hash,
+                            private_event_entry: entry,
+                        })<span class="question-mark">?</span>;
                     }
                     <span class="kw">_ </span>=&gt; {}
                 };
+                emit_signal(Signal::EntryCreated { action, app_entry })<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Ok</span>(())
         }

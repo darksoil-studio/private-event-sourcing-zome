@@ -115,51 +115,60 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
     EncryptedMessage, EntryTypes, LinkTypes, PrivateEventEntry,
 };
 
 <span class="kw">use crate</span>::{
-    private_event::{query_private_event_entries, receive_private_event, PrivateEvent},
+    private_event::PrivateEvent,
+    receive_private_events,
     utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
 };
 
 <span class="attr">#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
-</span><span class="kw">pub struct </span>EncryptedMessageBytes(XSalsa20Poly1305EncryptedData);
+</span><span class="kw">pub struct </span>PlainPrivateEventEntries(<span class="kw">pub </span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;);
 
 <span class="kw">pub fn </span>create_encrypted_message(
     recipient: AgentPubKey,
-    private_event_entry_hash: EntryHash,
-    entry: PrivateEventEntry,
+    private_events_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
 ) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>entry_bytes = SerializedBytes::try_from(entry).map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
-    <span class="kw">let </span>encrypted_data = ed_25519_x_salsa20_poly1305_encrypt(
+    <span class="kw">let </span>entry_hashes: BTreeSet&lt;EntryHashB64&gt; = private_events_entries.keys().cloned().collect();
+    <span class="kw">let </span>entry_bytes = SerializedBytes::try_from(PlainPrivateEventEntries(private_events_entries))
+        .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
+    <span class="kw">let </span>encrypted_entries = ed_25519_x_salsa20_poly1305_encrypt(
         agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
         recipient.clone(),
         entry_bytes.bytes().clone().into(),
     )<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>bytes = SerializedBytes::try_from(EncryptedMessageBytes(encrypted_data))
-        .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
+    <span class="kw">let </span>entry = EncryptedMessage {
+        encrypted_entries,
+        entry_hashes,
+    };
+    <span class="kw">let </span>bytes = SerializedBytes::try_from(entry.clone()).map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
 
     <span class="kw">if </span>bytes.bytes().len() &gt; <span class="number">900 </span>{
-        <span class="kw">let </span>entry = EncryptedMessage(bytes);
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>entry)<span class="question-mark">?</span>;
         create_relaxed(EntryTypes::EncryptedMessage(entry))<span class="question-mark">?</span>;
         create_link_relaxed(
             recipient.clone(),
-            private_event_entry_hash,
+            entry_hash,
             LinkTypes::AgentEncryptedMessage,
-            SerializedBytes::try_from(entry_hash)
-                .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?
-                </span>.bytes()
-                .clone(),
+            (),
         )<span class="question-mark">?</span>;
     } <span class="kw">else </span>{
         create_link_relaxed(
             recipient.clone(),
-            private_event_entry_hash,
+            recipient.clone(),
             LinkTypes::AgentEncryptedMessage,
             bytes.bytes().clone(),
         )<span class="question-mark">?</span>;
@@ -172,27 +181,33 @@
     get_links(GetLinksInputBuilder::try_new(agent, LinkTypes::AgentEncryptedMessage)<span class="question-mark">?</span>.build())
 }
 
-<span class="kw">fn </span>get_message(agent_encrypted_message_link: <span class="kw-2">&amp;</span>Link) -&gt; ExternResult&lt;<span class="prelude-ty">Option</span>&lt;SerializedBytes&gt;&gt; {
-    <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
-    <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
+<span class="kw">pub fn </span>get_message(agent_encrypted_message_link: <span class="kw-2">&amp;</span>Link) -&gt; ExternResult&lt;<span class="prelude-ty">Option</span>&lt;EncryptedMessage&gt;&gt; {
+    <span class="kw">if </span>agent_encrypted_message_link
+        .base
+        .eq(<span class="kw-2">&amp;</span>agent_encrypted_message_link.target)
+    {
+        <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
+        <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
 
-    <span class="kw">match </span>EntryHash::try_from(bytes) {
-        <span class="prelude-val">Ok</span>(entry_hash) =&gt; {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(entry_hash, GetOptions::default())<span class="question-mark">? </span><span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-            };
+        <span class="kw">let </span>message = EncryptedMessage::try_from(bytes).map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
 
-            <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message)) = record.entry().to_app_option::&lt;EncryptedMessage&gt;()
-            <span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid EncryptedMessage target"</span>));
-            };
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message.<span class="number">0</span>))
-        }
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-            <span class="kw">let </span>tag = agent_encrypted_message_link.tag.clone();
-            <span class="kw">let </span>bytes = SerializedBytes::from(UnsafeBytes::from(tag.into_inner()));
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(bytes))
-        }
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(message))
+    } <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(entry_hash) = agent_encrypted_message_link
+            .target
+            .clone()
+            .into_entry_hash()
+        <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid EncryptedMessage target"</span>));
+        };
+        <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(entry_hash, GetOptions::default())<span class="question-mark">? </span><span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        };
+
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message)) = record.entry().to_app_option::&lt;EncryptedMessage&gt;() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid EncryptedMessage target"</span>));
+        };
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(encrypted_message))
     }
 }
 
@@ -200,30 +215,27 @@
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_latest_pubkey;
     <span class="kw">let </span>links = get_agent_encrypted_messages(my_pub_key.clone())<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>private_events_entries = query_private_event_entries(())<span class="question-mark">?</span>;
-
     <span class="kw">for </span>link <span class="kw">in </span>links {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(bytes) = get_message(<span class="kw-2">&amp;</span>link)<span class="question-mark">? </span><span class="kw">else </span>{
+        <span class="macro">debug!</span>(<span class="string">"[commit_my_pending_encrypted_messages] Found an EncryptedMessage link."</span>);
+        <span class="kw">let </span><span class="prelude-val">Some</span>(message) = get_message(<span class="kw-2">&amp;</span>link)<span class="question-mark">? </span><span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
-        <span class="kw">let </span>encrypted_data =
-            EncryptedMessageBytes::try_from(bytes).map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
+        <span class="macro">debug!</span>(<span class="string">"[commit_my_pending_encrypted_messages] Found an EncryptedMessage."</span>);
 
         <span class="kw">let </span>decrypted_data = ed_25519_x_salsa20_poly1305_decrypt(
             my_pub_key.clone(),
             link.author.clone(),
-            encrypted_data.<span class="number">0</span>,
+            message.encrypted_entries,
         )<span class="question-mark">?</span>;
 
         <span class="kw">let </span>decrypted_bytes = decrypted_data.as_ref().to_vec();
         <span class="kw">let </span>decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(private_event_entry) = PrivateEventEntry::try_from(decrypted_serialized_bytes) {
-            <span class="kw">let </span>private_event_entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
-            <span class="kw">if </span>!private_events_entries.contains_key(<span class="kw-2">&amp;</span>private_event_entry_hash.into()) {
-                <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = receive_private_event::&lt;T&gt;(link.author, private_event_entry) {
-                    <span class="macro">error!</span>(<span class="string">"Failed to receive private event from an encrypted message: {err:?}."</span>)
-                }
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(private_events_entries) =
+            PlainPrivateEventEntries::try_from(decrypted_serialized_bytes)
+        {
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = receive_private_events::&lt;T&gt;(link.author, private_events_entries.<span class="number">0</span>) {
+                <span class="macro">error!</span>(<span class="string">"Failed to receive private event from an encrypted message: {err:?}."</span>)
             }
         }
 
