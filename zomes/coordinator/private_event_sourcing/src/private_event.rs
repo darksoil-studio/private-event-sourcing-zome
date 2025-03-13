@@ -188,10 +188,6 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
             "Unreachable: could not get the record that was just created."
         ));
     };
-    emit_signal(Signal::EntryCreated {
-        action: record.signed_action,
-        app_entry,
-    })?;
     // send_private_event_to_linked_devices_and_recipients::<T>(
     //     entry_hash.clone(),
     //     private_event_entry.clone(),
