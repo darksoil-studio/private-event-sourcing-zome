@@ -211,9 +211,10 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
 ) -> ExternResult<EntryHash> {
     let entry_hash = hash_entry(&private_event_entry)?;
-    let app_entry = EntryTypes::PrivateEvent(private_event_entry);
-    let action_hash = create_relaxed(app_entry.clone())?;
+    let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+    create_relaxed(app_entry)?;
     emit_signal(Signal::NewPrivateEvent {
+        event_hash: entry_hash.clone(),
         private_event_entry,
     })?;
     // send_private_event_to_linked_devices_and_recipients::<T>(
