@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@holochain/client": "^0.18.0",
-    "@darksoil-studio/profiles-zome": "0.400.0-rev.cca82532f957ff1656da8cf2be3d7d6a9c9d4c68",
+    "@darksoil-studio/profiles-zome": "0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902",
     "@tnesh-stack/elements": "^0.400.0",
     "@tnesh-stack/signals": "^0.400.0",
     "@tnesh-stack/utils": "^0.400.0",
