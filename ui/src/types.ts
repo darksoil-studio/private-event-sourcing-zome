@@ -6,7 +6,7 @@ export type PrivateEventSourcingSignal = ActionCommittedSignal<
 	LinkTypes
 >;
 
-export type EntryTypes = never;
+export type EntryTypes = { type: 'PrivateEvent' } & PrivateEventEntry;
 
 export type LinkTypes = string;
 
