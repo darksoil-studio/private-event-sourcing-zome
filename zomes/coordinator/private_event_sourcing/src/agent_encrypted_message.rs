@@ -6,7 +6,7 @@ use private_event_sourcing_integrity::{
 };
 
 use crate::{
-    private_event::{query_private_event_entries, PrivateEvent},
+    private_event::PrivateEvent,
     receive_private_events,
     utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
 };
@@ -93,9 +93,11 @@ pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<(
     let links = get_agent_encrypted_messages(my_pub_key.clone())?;
 
     for link in links {
+        debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage link.");
         let Some(message) = get_message(&link)? else {
             continue;
         };
+        debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage.");
 
         let decrypted_data = ed_25519_x_salsa20_poly1305_decrypt(
             my_pub_key.clone(),

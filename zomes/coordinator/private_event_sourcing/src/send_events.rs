@@ -59,6 +59,7 @@ pub fn send_events_to_linked_devices_and_recipients<T: PrivateEvent>(
             warn!("Error calling PrivateEvent::recipients()");
             continue;
         };
+        recipients.remove(&private_event_entry.0.author);
         recipients.append(&mut my_linked_devices.clone());
 
         for recipient in recipients {
