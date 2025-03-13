@@ -101,9 +101,6 @@ importers:
 
   ui:
     dependencies:
-      '@darksoil-studio/profiles-zome':
-        specifier: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902
-        version: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@holochain/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -138,6 +135,9 @@ importers:
       '@custom-elements-manifest/analyzer':
         specifier: ^0.10.3
         version: 0.10.4
+      '@darksoil-studio/profiles-zome':
+        specifier: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902
+        version: 0.400.0-rev.e9c520aec484bfb0575d0fd57e7193096ac45902(@floating-ui/utils@0.2.9)(@types/react@19.0.10)
       '@lit/localize-tools':
         specifier: ^0.6.3
         version: 0.6.10
