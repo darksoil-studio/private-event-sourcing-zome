@@ -156,21 +156,29 @@ pub fn receive_private_events<T: PrivateEvent>(
             continue;
         }
 
-        let outcome = validate_private_event_entry::<T>(entry_hash.into(), &private_event_entry)?;
+        let outcome =
+            validate_private_event_entry::<T>(entry_hash.clone().into(), &private_event_entry)?;
 
         match outcome {
             ValidateCallbackResult::Valid => {
-                info!("Received a PrivateEvent.");
+                info!("Received a PrivateEvent {entry_hash}.");
                 internal_create_private_event::<T>(private_event_entry)?;
             }
             ValidateCallbackResult::UnresolvedDependencies(unresolved_dependencies) => {
+                info!(
+                    "Received a PrivateEvent {entry_hash} but we don't have all its dependencies."
+                );
                 create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
                     event: private_event_entry,
                     unresolved_dependencies,
                 }))?;
             }
             ValidateCallbackResult::Invalid(reason) => {
-                return Err(wasm_error!("Invalid PrivateEvent: {}.", reason));
+                return Err(wasm_error!(
+                    "Invalid PrivateEvent {}: {}.",
+                    entry_hash,
+                    reason
+                ));
             }
         }
     }
