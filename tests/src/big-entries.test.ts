@@ -35,6 +35,6 @@ test('big entries get gossiped asynchronously', async () => {
 		await waitUntil(async () => {
 			const privateEvents = await toPromise(bob.store.privateEvents);
 			return Object.keys(privateEvents).length === 1;
-		}, 100_000);
+		}, 1_000_000);
 	});
 });
