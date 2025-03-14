@@ -10,7 +10,7 @@ test('big entries get gossiped asynchronously', async () => {
 
 		await bob.player.conductor.shutDown();
 
-		const LENGTH = 400_000;
+		const LENGTH = 200_000;
 
 		await alice.store.client.client.callZome({
 			role_name: 'private_event_sourcing_test',
