@@ -21,11 +21,22 @@ pub fn create_encrypted_message(
     let entry_hashes: BTreeSet<EntryHashB64> = private_events_entries.keys().cloned().collect();
     let entry_bytes = SerializedBytes::try_from(PlainPrivateEventEntries(private_events_entries))
         .map_err(|err| wasm_error!(err))?;
-    let encrypted_entries = ed_25519_x_salsa20_poly1305_encrypt(
-        agent_info()?.agent_latest_pubkey,
-        recipient.clone(),
-        entry_bytes.bytes().clone().into(),
-    )?;
+
+    let chunks: Vec<XSalsa20Poly1305Data> = entry_bytes
+        .bytes()
+        .chunks(2_000)
+        .map(|c| c.to_vec().into())
+        .collect();
+    let encrypted_entries = chunks
+        .into_iter()
+        .map(|chunk| {
+            ed_25519_x_salsa20_poly1305_encrypt(
+                agent_info()?.agent_latest_pubkey,
+                recipient.clone(),
+                chunk,
+            )
+        })
+        .collect::<ExternResult<Vec<XSalsa20Poly1305EncryptedData>>>()?;
 
     let entry = EncryptedMessage {
         encrypted_entries,
@@ -99,13 +110,19 @@ pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<(
         };
         debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage.");
 
-        let decrypted_data = ed_25519_x_salsa20_poly1305_decrypt(
-            my_pub_key.clone(),
-            link.author.clone(),
-            message.encrypted_entries,
-        )?;
+        let decrypted_data = message
+            .encrypted_entries
+            .into_iter()
+            .map(|chunk| {
+                ed_25519_x_salsa20_poly1305_decrypt(my_pub_key.clone(), link.author.clone(), chunk)
+            })
+            .collect::<ExternResult<Vec<XSalsa20Poly1305Data>>>()?;
 
-        let decrypted_bytes = decrypted_data.as_ref().to_vec();
+        let decrypted_bytes: Vec<u8> = decrypted_data
+            .into_iter()
+            .map(|chunk| chunk.as_ref().to_vec())
+            .flatten()
+            .collect();
         let decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
         if let Ok(private_events_entries) =

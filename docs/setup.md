@@ -16,7 +16,6 @@ use hdk::prelude::*;
 use private_event_sourcing::*;
 
 #[private_event]
-#[serde(tag = "type")]
 pub enum ZOME_NAMEEvent {}
 
 impl PrivateEvent for ZOME_NAMEEvent {
