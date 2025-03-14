@@ -3,7 +3,7 @@ use hdi::prelude::*;
 #[hdk_entry_helper]
 #[derive(Clone)]
 pub struct EncryptedMessage {
-    pub encrypted_entries: XSalsa20Poly1305EncryptedData,
+    pub encrypted_entries: Vec<XSalsa20Poly1305EncryptedData>,
     pub entry_hashes: BTreeSet<EntryHashB64>,
 }
 
