@@ -16,7 +16,9 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let output = quote::quote! {
-        #[derive(Serialize, Deserialize, SerializedBytes, Debug, private_event_sourcing::IntoStaticStr, Clone)] #input
+        #[derive(Serialize, Deserialize, SerializedBytes, Debug, private_event_sourcing::IntoStaticStr, Clone)]
+        #[serde(tag = "type")]
+        #input
 
         impl private_event_sourcing::EventType for #ident {
             fn event_type(&self) -> String {
