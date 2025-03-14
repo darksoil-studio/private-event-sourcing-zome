@@ -86,7 +86,7 @@
 <span class="attr">#[hdk_entry_helper]
 #[derive(Clone)]
 </span><span class="kw">pub struct </span>EncryptedMessage {
-    <span class="kw">pub </span>encrypted_entries: XSalsa20Poly1305EncryptedData,
+    <span class="kw">pub </span>encrypted_entries: Vec&lt;XSalsa20Poly1305EncryptedData&gt;,
     <span class="kw">pub </span>entry_hashes: BTreeSet&lt;EntryHashB64&gt;,
 }
 

@@ -370,7 +370,14 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>core::hash;
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::collections::BTreeMap;
 
@@ -415,6 +422,9 @@
     }
 }
 
+<span class="attr">#[hdk_entry_helper]
+</span><span class="kw">pub struct </span>SignedEntry(<span class="kw">pub </span>SignedContent&lt;SerializedBytes&gt;);
+
 <span class="kw">fn </span>build_private_event_entry&lt;T: PrivateEvent&gt;(
     private_event: T,
     timestamp: Timestamp,
@@ -429,8 +439,9 @@
         timestamp,
         event_type,
     };
+    <span class="kw">let </span>signed_hash = hash_entry(<span class="kw-2">&amp;</span>SignedEntry(signed.clone()))<span class="question-mark">?</span>;
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_latest_pubkey;
-    <span class="kw">let </span>signature = sign(my_pub_key.clone(), <span class="kw-2">&amp;</span>signed)<span class="question-mark">?</span>;
+    <span class="kw">let </span>signature = sign(my_pub_key.clone(), <span class="kw-2">&amp;</span>signed_hash)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(PrivateEventEntry(SignedEvent {
         author: my_pub_key,
         signature,
@@ -479,10 +490,11 @@
     entry_hash: EntryHash,
     private_event_entry: <span class="kw-2">&amp;</span>PrivateEventEntry,
 ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
+    <span class="kw">let </span>signed_hash = hash_entry(<span class="kw-2">&amp;</span>SignedEntry(private_event_entry.<span class="number">0</span>.event.clone()))<span class="question-mark">?</span>;
     <span class="kw">let </span>valid = verify_signature(
         private_event_entry.<span class="number">0</span>.author.clone(),
         private_event_entry.<span class="number">0</span>.signature.clone(),
-        <span class="kw-2">&amp;</span>private_event_entry.<span class="number">0</span>.event,
+        <span class="kw-2">&amp;</span>signed_hash,
     )<span class="question-mark">?</span>;
 
     <span class="kw">if </span>!valid {

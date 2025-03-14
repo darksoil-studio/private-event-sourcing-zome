@@ -103,14 +103,12 @@
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing::<span class="kw-2">*</span>;
 
 <span class="attr">#[private_event]
-#[serde(tag = <span class="string">"type"</span>)]
 </span><span class="kw">pub enum </span>Event {
     SharedEntry {
         recipient: AgentPubKey,

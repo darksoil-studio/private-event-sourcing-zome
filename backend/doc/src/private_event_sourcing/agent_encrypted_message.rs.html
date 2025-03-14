@@ -121,6 +121,23 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
@@ -144,11 +161,22 @@
     <span class="kw">let </span>entry_hashes: BTreeSet&lt;EntryHashB64&gt; = private_events_entries.keys().cloned().collect();
     <span class="kw">let </span>entry_bytes = SerializedBytes::try_from(PlainPrivateEventEntries(private_events_entries))
         .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
-    <span class="kw">let </span>encrypted_entries = ed_25519_x_salsa20_poly1305_encrypt(
-        agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
-        recipient.clone(),
-        entry_bytes.bytes().clone().into(),
-    )<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>chunks: Vec&lt;XSalsa20Poly1305Data&gt; = entry_bytes
+        .bytes()
+        .chunks(<span class="number">2_000</span>)
+        .map(|c| c.to_vec().into())
+        .collect();
+    <span class="kw">let </span>encrypted_entries = chunks
+        .into_iter()
+        .map(|chunk| {
+            ed_25519_x_salsa20_poly1305_encrypt(
+                agent_info()<span class="question-mark">?</span>.agent_latest_pubkey,
+                recipient.clone(),
+                chunk,
+            )
+        })
+        .collect::&lt;ExternResult&lt;Vec&lt;XSalsa20Poly1305EncryptedData&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
     <span class="kw">let </span>entry = EncryptedMessage {
         encrypted_entries,
@@ -222,13 +250,19 @@
         };
         <span class="macro">debug!</span>(<span class="string">"[commit_my_pending_encrypted_messages] Found an EncryptedMessage."</span>);
 
-        <span class="kw">let </span>decrypted_data = ed_25519_x_salsa20_poly1305_decrypt(
-            my_pub_key.clone(),
-            link.author.clone(),
-            message.encrypted_entries,
-        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>decrypted_data = message
+            .encrypted_entries
+            .into_iter()
+            .map(|chunk| {
+                ed_25519_x_salsa20_poly1305_decrypt(my_pub_key.clone(), link.author.clone(), chunk)
+            })
+            .collect::&lt;ExternResult&lt;Vec&lt;XSalsa20Poly1305Data&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>decrypted_bytes = decrypted_data.as_ref().to_vec();
+        <span class="kw">let </span>decrypted_bytes: Vec&lt;u8&gt; = decrypted_data
+            .into_iter()
+            .map(|chunk| chunk.as_ref().to_vec())
+            .flatten()
+            .collect();
         <span class="kw">let </span>decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(private_events_entries) =
