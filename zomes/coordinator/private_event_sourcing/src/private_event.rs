@@ -1,3 +1,4 @@
+use core::hash;
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 use std::collections::BTreeMap;
@@ -43,6 +44,9 @@ pub trait PrivateEvent:
     }
 }
 
+#[hdk_entry_helper]
+pub struct SignedEntry(pub SignedContent<SerializedBytes>);
+
 fn build_private_event_entry<T: PrivateEvent>(
     private_event: T,
     timestamp: Timestamp,
@@ -57,8 +61,9 @@ fn build_private_event_entry<T: PrivateEvent>(
         timestamp,
         event_type,
     };
+    let signed_hash = hash_entry(&SignedEntry(signed.clone()))?;
     let my_pub_key = agent_info()?.agent_latest_pubkey;
-    let signature = sign(my_pub_key.clone(), &signed)?;
+    let signature = sign(my_pub_key.clone(), &signed_hash)?;
     Ok(PrivateEventEntry(SignedEvent {
         author: my_pub_key,
         signature,
@@ -107,10 +112,11 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
     entry_hash: EntryHash,
     private_event_entry: &PrivateEventEntry,
 ) -> ExternResult<ValidateCallbackResult> {
+    let signed_hash = hash_entry(&SignedEntry(private_event_entry.0.event.clone()))?;
     let valid = verify_signature(
         private_event_entry.0.author.clone(),
         private_event_entry.0.signature.clone(),
-        &private_event_entry.0.event,
+        &signed_hash,
     )?;
 
     if !valid {

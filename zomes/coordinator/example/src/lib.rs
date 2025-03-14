@@ -4,7 +4,6 @@ use hdk::prelude::*;
 use private_event_sourcing::*;
 
 #[private_event]
-#[serde(tag = "type")]
 pub enum Event {
     SharedEntry {
         recipient: AgentPubKey,
