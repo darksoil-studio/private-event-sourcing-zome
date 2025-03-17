@@ -5,6 +5,7 @@
 		"test": "WASM_LOG=debug vitest run"
 	},
 	"dependencies": {
+		"@darksoil-studio/linked-devices-zome": "0.400.0-rev.2679811ecd7856667c8397af7b1ecf41c8e82d79",
 		"@msgpack/msgpack": "^2.8.0",
 		"@holochain/client": "^0.18.0",
 		"@holochain/tryorama": "^0.17.0",

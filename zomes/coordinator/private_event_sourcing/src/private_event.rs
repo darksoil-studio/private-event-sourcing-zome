@@ -162,13 +162,13 @@ pub fn receive_private_events<T: PrivateEvent>(
 
     let my_private_event_entries = query_private_event_entries(())?;
 
-    let mut ordered_their_private_messenger_entries: Vec<(EntryHashB64, PrivateEventEntry)> =
+    let mut ordered_their_private_event_entries: Vec<(EntryHashB64, PrivateEventEntry)> =
         private_event_entries.into_iter().collect();
 
-    ordered_their_private_messenger_entries
+    ordered_their_private_event_entries
         .sort_by(|e1, e2| e1.1 .0.event.timestamp.cmp(&e2.1 .0.event.timestamp));
 
-    for (entry_hash, private_event_entry) in ordered_their_private_messenger_entries {
+    for (entry_hash, private_event_entry) in ordered_their_private_event_entries {
         if my_private_event_entries.contains_key(&entry_hash) {
             // We already have this message committed
             continue;
