@@ -1,3 +1,7 @@
+import {
+	LinkedDevicesClient,
+	LinkedDevicesStore,
+} from '@darksoil-studio/linked-devices-zome';
 import { AppWebsocket } from '@holochain/client';
 import { Scenario, dhtSync, pause } from '@holochain/tryorama';
 import { dirname } from 'path';
@@ -36,13 +40,19 @@ async function addPlayer(scenario: Scenario) {
 	await player.conductor
 		.adminWs()
 		.authorizeSigningCredentials(player.cells[0].cell_id);
+	const linkedDevicesStore = new LinkedDevicesStore(
+		new LinkedDevicesClient(player.appWs as any, 'private_event_sourcing_test'),
+	);
+
 	const store = new PrivateEventSourcingStore(
 		new PrivateEventSourcingClient(
 			player.appWs as any,
 			'private_event_sourcing_test',
 			'example',
 		),
+		linkedDevicesStore,
 	);
+
 	return {
 		store,
 		player,
@@ -100,4 +110,30 @@ export async function waitUntil(
 	if (timeout <= 0) throw new Error('timeout');
 	await pause(1000);
 	return waitUntil(condition, timeout - (Date.now() - start));
+}
+
+export async function linkDevices(
+	store1: LinkedDevicesStore,
+	store2: LinkedDevicesStore,
+) {
+	const store1Passcode = [1, 3, 7, 2];
+	const store2Passcode = [9, 3, 8, 4];
+
+	await store1.client.prepareLinkDevicesRequestor(
+		store2.client.client.myPubKey,
+		store1Passcode,
+	);
+	await store2.client.prepareLinkDevicesRecipient(
+		store1.client.client.myPubKey,
+		store2Passcode,
+	);
+
+	await store1.client.requestLinkDevices(
+		store2.client.client.myPubKey,
+		store2Passcode,
+	);
+	await store2.client.acceptLinkDevices(
+		store1.client.client.myPubKey,
+		store1Passcode,
+	);
 }
