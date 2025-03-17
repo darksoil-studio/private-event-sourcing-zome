@@ -8,13 +8,12 @@ import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
 import { PrivateEventEntry, SignedEvent } from './types.js';
 import { asyncReadable } from './utils.js';
 
-export class PrivateEventSourcingStore<E, ADDITIONAL_SIGNALS = void> {
+export class PrivateEventSourcingStore<E> {
 	constructor(
-		public client: PrivateEventSourcingClient<ADDITIONAL_SIGNALS>,
+		public client: PrivateEventSourcingClient<object>,
 		public linkedDevicesStore?: LinkedDevicesStore,
 	) {
 		this.client.commitMyPendingEncryptedMessages();
-
 		if (linkedDevicesStore) {
 			linkedDevicesStore.client.onSignal(signal => {
 				if (signal.type !== 'LinkCreated') return;
