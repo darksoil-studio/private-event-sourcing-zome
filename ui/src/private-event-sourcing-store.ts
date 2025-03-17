@@ -11,15 +11,17 @@ import { asyncReadable } from './utils.js';
 export class PrivateEventSourcingStore<E> {
 	constructor(
 		public client: PrivateEventSourcingClient<object>,
-		public linkedDevicesStore: LinkedDevicesStore,
+		public linkedDevicesStore?: LinkedDevicesStore,
 	) {
-		linkedDevicesStore.client.onSignal(signal => {
-			if (signal.type !== 'LinkCreated') return;
-			if (signal.link_type !== 'AgentToLinkedDevices') return;
-			this.client.synchronizeWithLinkedDevice(
-				retype(signal.action.hashed.content.target_address, HashType.AGENT),
-			);
-		});
+		if (linkedDevicesStore) {
+			linkedDevicesStore.client.onSignal(signal => {
+				if (signal.type !== 'LinkCreated') return;
+				if (signal.link_type !== 'AgentToLinkedDevices') return;
+				this.client.synchronizeWithLinkedDevice(
+					retype(signal.action.hashed.content.target_address, HashType.AGENT),
+				);
+			});
+		}
 	}
 
 	privateEventEntries = asyncReadable<Record<EntryHashB64, PrivateEventEntry>>(
