@@ -7,15 +7,26 @@ integrity:
   zomes:
   - name: example_integrity
     hash: null
-    bundled: '../target/wasm32-unknown-unknown/release/example_integrity.wasm'
+    bundled: ../target/wasm32-unknown-unknown/release/example_integrity.wasm
+    dependencies: null
+    dylib: null
+  - name: linked_devices_integrity
+    hash: null
+    bundled: <NIX_PACKAGE>
     dependencies: null
     dylib: null
 coordinator:
   zomes:
   - name: example
     hash: null
-    bundled: '../target/wasm32-unknown-unknown/release/example.wasm'
+    bundled: ../target/wasm32-unknown-unknown/release/example.wasm
     dependencies:
     - name: example_integrity
+    dylib: null
+  - name: linked_devices
+    hash: null
+    bundled: <NIX_PACKAGE>
+    dependencies:
+    - name: linked_devices_integrity
     dylib: null
 lineage: []

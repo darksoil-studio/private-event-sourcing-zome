@@ -1,13 +1,26 @@
+import { LinkedDevicesStore } from '@darksoil-studio/linked-devices-zome';
 import { EntryHashB64, encodeHashToBase64 } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { AsyncComputed } from '@tnesh-stack/signals';
+import { HashType, retype } from '@tnesh-stack/utils';
 
 import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
 import { PrivateEventEntry, SignedEvent } from './types.js';
 import { asyncReadable } from './utils.js';
 
 export class PrivateEventSourcingStore<E> {
-	constructor(public client: PrivateEventSourcingClient<object>) {}
+	constructor(
+		public client: PrivateEventSourcingClient<object>,
+		public linkedDevicesStore: LinkedDevicesStore,
+	) {
+		linkedDevicesStore.client.onSignal(signal => {
+			if (signal.type !== 'LinkCreated') return;
+			if (signal.link_type !== 'AgentToLinkedDevices') return;
+			this.client.synchronizeWithLinkedDevice(
+				retype(signal.action.hashed.content.target_address, HashType.AGENT),
+			);
+		});
+	}
 
 	privateEventEntries = asyncReadable<Record<EntryHashB64, PrivateEventEntry>>(
 		async set => {
