@@ -1,3 +1,7 @@
+import {
+	LinkedDevicesClient,
+	LinkedDevicesStore,
+} from '@darksoil-studio/linked-devices-zome';
 import { CellId, CellType } from '@holochain/client';
 import {
 	AgentApp,
@@ -69,6 +73,9 @@ test('create a shared entry gets to each source chain', async () => {
 				appWs,
 				'private_event_sourcing_test',
 				'example',
+			),
+			new LinkedDevicesStore(
+				new LinkedDevicesClient(appWs, 'private_event_sourcing_test'),
 			),
 		);
 
