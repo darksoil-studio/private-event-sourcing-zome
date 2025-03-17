@@ -66,7 +66,6 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
@@ -83,11 +82,11 @@
 
     entries.sort_by(|e1, e2| e1.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp.cmp(<span class="kw-2">&amp;</span>e2.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp));
 
-    <span class="kw">let </span>private_messenger_entries = query_private_event_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
     <span class="kw">for </span>(_action_hash, private_event_entry) <span class="kw">in </span>entries {
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
-        <span class="kw">if </span>!private_messenger_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash.clone().into()) {
+        <span class="kw">if </span>!private_event_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash.clone().into()) {
             <span class="kw">let </span>valid = validate_private_event_entry::&lt;T&gt;(entry_hash, <span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
             <span class="kw">match </span>valid {
@@ -106,7 +105,7 @@
 }
 
 <span class="kw">pub fn </span>query_awaiting_deps_entries() -&gt; ExternResult&lt;BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;&gt; {
-    <span class="kw">let </span>existing_private_messenger_entries = query_private_event_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>existing_private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
 
     <span class="kw">let </span>filter = ChainQueryFilter::new()
         .entry_type(UnitEntryTypes::AwaitingDependencies.try_into()<span class="question-mark">?</span>)
@@ -117,7 +116,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; = BTreeMap::new();
 
     <span class="kw">for </span>record <span class="kw">in </span>create_records {
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(private_messenger_entry)) = record
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(private_event_entry)) = record
             .entry()
             .to_app_option::&lt;PrivateEventEntry&gt;()
             .map_err(|err| <span class="macro">wasm_error!</span>(err))
@@ -127,11 +126,10 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(entry_hash) = record.action().entry_hash() <span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
-        <span class="kw">if </span>existing_private_messenger_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(entry_hash.clone()))
-        {
+        <span class="kw">if </span>existing_private_event_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(entry_hash.clone())) {
             <span class="kw">continue</span>;
         }
-        entries.insert(entry_hash.clone().into(), private_messenger_entry);
+        entries.insert(entry_hash.clone().into(), private_event_entry);
     }
 
     <span class="prelude-val">Ok</span>(entries)
