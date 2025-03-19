@@ -80,7 +80,29 @@ pub fn recv_remote_signal(signal_bytes: SerializedBytes) -> ExternResult<()> {
     }
 }
 
+fn query_prev_dna() -> ExternResult<Option<DnaHash>> {
+    let open_chains = query(ChainQueryFilter::new().action_type(ActionType::OpenChain))?;
+
+    Ok(open_chains
+        .into_iter()
+        .find_map(|record| match record.action() {
+            Action::OpenChain(open_chain) => match &open_chain.prev_target {
+                MigrationTarget::Dna(old_dna_hash) => Some(old_dna_hash.clone()),
+                _ => None,
+            },
+            _ => None,
+        }))
+}
+
 #[hdk_extern]
+pub fn init() -> ExternResult<InitCallbackResult> {
+    if let Some(old_dna_hash) = query_prev_dna()? {
+        migrate_from_old_cell(CellId::new(old_dna_hash, agent_info()?.agent_latest_pubkey))?;
+    }
+
+    private_event_sourcing::init()
+}
+
 pub fn migrate_from_old_cell(old_cell: CellId) -> ExternResult<()> {
     let response = call(
         CallTargetCell::OtherCell(old_cell),

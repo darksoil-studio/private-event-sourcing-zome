@@ -28,7 +28,6 @@ pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
     Ok(())
 }
 
-#[hdk_extern]
 pub fn init() -> ExternResult<InitCallbackResult> {
     let mut fns: BTreeSet<GrantedFunction> = BTreeSet::new();
     fns.insert((zome_info()?.name, FunctionName::from("recv_remote_signal")));
