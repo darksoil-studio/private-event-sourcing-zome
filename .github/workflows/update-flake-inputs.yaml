@@ -41,8 +41,6 @@ jobs:
         id: changes
         with:
           filters: |
-            flake_lock:
-              - 'flake.lock'
             package_json:
               - '**/*/package.json'
 
