@@ -16,7 +16,7 @@
     "@api-viewer/demo": "1.0.0-pre.10",
     "@api-viewer/docs": "1.0.0-pre.10",
     "@holochain/client": "^0.18.0",
-    "@darksoil-studio/profiles-zome": "0.400.0-rev.08c62aeb8774e3cc45369e278d02b961390247c4",
+    "@darksoil-studio/profiles-zome": "0.400.0-rev.0e6b1cd53ee4182a6e1cb5fd850d7f826f5662db",
     "@darksoil-studio/private-event-sourcing-zome": "workspace:*",
     "@shoelace-style/shoelace": "^2.11.0",
     "api-viewer-element": "^1.0.0-pre.10",

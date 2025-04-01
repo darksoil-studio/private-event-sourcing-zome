@@ -38,10 +38,10 @@
     "@msgpack/msgpack": "^2.8.0",
     "@shoelace-style/shoelace": "^2.11.0",
     "lit": "^3.0.0",
-    "@darksoil-studio/linked-devices-zome": "0.400.0-rev.6179ab788aae0e9c9c4959565c41fdd67937a25c"
+    "@darksoil-studio/linked-devices-zome": "0.400.0-rev.681dfa4183284292d9e40832c517a52f2200ba9f"
   },
   "devDependencies": {
-    "@darksoil-studio/profiles-zome": "0.400.0-rev.08c62aeb8774e3cc45369e278d02b961390247c4",
+    "@darksoil-studio/profiles-zome": "0.400.0-rev.0e6b1cd53ee4182a6e1cb5fd850d7f826f5662db",
     "@custom-elements-manifest/analyzer": "^0.10.3",
     "@lit/localize-tools": "^0.6.3",
     "typescript": "^5.4.5",
