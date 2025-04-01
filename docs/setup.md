@@ -21,6 +21,7 @@ pub enum ZOME_NAMEEvent {}
 impl PrivateEvent for ZOME_NAMEEvent {
     fn validate(
         &self,
+        _event_hash: EntryHash,
         _author: AgentPubKey,
         _timestamp: Timestamp,
     ) -> ExternResult<ValidateCallbackResult> {
@@ -29,10 +30,11 @@ impl PrivateEvent for ZOME_NAMEEvent {
 
     fn recipients(
         &self,
+        _event_hash: EntryHash,
         _author: AgentPubKey,
         _timestamp: Timestamp,
-    ) -> ExternResult<Vec<AgentPubKey>> {
-        Ok(vec![])
+    ) -> ExternResult<BTreeSet<AgentPubKey>> {
+        Ok(BTreeSet::new())
     }
 }
 
