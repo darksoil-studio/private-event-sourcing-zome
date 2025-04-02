@@ -2,7 +2,8 @@
   description = "Template for Holochain app development";
 
   inputs = {
-    linked-devices-zome.url = "github:darksoil-studio/linked-devices-zome/main-0.4";
+    linked-devices-zome.url =
+      "github:darksoil-studio/linked-devices-zome/main-0.4";
     holonix.url = "github:holochain/holonix/main-0.4";
 
     nixpkgs.follows = "holonix/nixpkgs";
@@ -10,8 +11,6 @@
 
     tnesh-stack.url = "github:darksoil-studio/tnesh-stack/main-0.4";
     playground.url = "github:darksoil-studio/holochain-playground/main-0.4";
-
-    profiles-zome.url = "github:darksoil-studio/profiles-zome/main-0.4";
   };
 
   nixConfig = {
