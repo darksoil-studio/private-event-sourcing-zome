@@ -1,8 +1,8 @@
+import { AsyncComputed } from '@darksoil-studio/holochain-signals';
+import { HashType, retype } from '@darksoil-studio/holochain-utils';
 import { LinkedDevicesStore } from '@darksoil-studio/linked-devices-zome';
 import { EntryHashB64, encodeHashToBase64 } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
-import { AsyncComputed } from '@darksoil-studio/holochain-signals';
-import { HashType, retype } from '@darksoil-studio/holochain-utils';
 
 import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
 import { PrivateEventEntry, SignedEvent } from './types.js';

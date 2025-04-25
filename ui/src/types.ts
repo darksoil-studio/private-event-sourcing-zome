@@ -1,10 +1,10 @@
+import { ActionCommittedSignal } from '@darksoil-studio/holochain-utils';
 import {
 	AgentPubKey,
 	EntryHash,
 	Signature,
 	Timestamp,
 } from '@holochain/client';
-import { ActionCommittedSignal } from '@darksoil-studio/holochain-utils';
 
 export type PrivateEventSourcingSignal =
 	| ActionCommittedSignal<EntryTypes, LinkTypes>
