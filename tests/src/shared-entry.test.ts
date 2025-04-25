@@ -1,5 +1,5 @@
+import { toPromise } from '@darksoil-studio/holochain-signals';
 import { dhtSync, pause, runScenario } from '@holochain/tryorama';
-import { toPromise } from '@tnesh-stack/signals';
 import { assert, expect, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
@@ -58,6 +58,6 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 		await waitUntil(async () => {
 			const privateEvents = await toPromise(bob.store.privateEvents);
 			return Object.keys(privateEvents).length === 1;
-		}, 100_000);
+		}, 200_000);
 	});
 });

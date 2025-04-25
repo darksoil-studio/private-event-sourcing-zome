@@ -62,7 +62,7 @@ fn build_private_event_entry<T: PrivateEvent>(
         event_type,
     };
     let signed_hash = hash_entry(&SignedEntry(signed.clone()))?;
-    let my_pub_key = agent_info()?.agent_latest_pubkey;
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
     let signature = sign(my_pub_key.clone(), &signed_hash)?;
     Ok(PrivateEventEntry(SignedEvent {
         author: my_pub_key,
@@ -77,7 +77,7 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
     let entry_hash = hash_entry(&entry)?;
     let validation_outcome = private_event.validate(
         entry_hash,
-        agent_info()?.agent_latest_pubkey,
+        agent_info()?.agent_initial_pubkey,
         timestamp.clone(),
     )?;
 

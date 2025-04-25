@@ -34,12 +34,11 @@ export async function setup(scenario: Scenario, numPlayers = 2) {
 }
 
 async function addPlayer(scenario: Scenario) {
-	const player = await scenario.addPlayerWithApp({ path: testHappUrl });
+	const player = await scenario.addPlayerWithApp({
+		type: 'path',
+		value: testHappUrl,
+	});
 
-	patchCallZome(player.appWs as AppWebsocket);
-	await player.conductor
-		.adminWs()
-		.authorizeSigningCredentials(player.cells[0].cell_id);
 	const linkedDevicesStore = new LinkedDevicesStore(
 		new LinkedDevicesClient(player.appWs as any, 'private_event_sourcing_test'),
 	);
@@ -65,7 +64,7 @@ async function addPlayer(scenario: Scenario) {
 					installed_app_id: player.appId,
 				});
 			const appWs = await player.conductor.connectAppWs(issued.token, port);
-			patchCallZome(appWs);
+			// patchCallZome(appWs);
 			store.client.client = appWs;
 		},
 	};
@@ -86,7 +85,7 @@ function patchCallZome(appWs: AppWebsocket) {
 	appWs.callZome = async req => {
 		try {
 			const result = await callZome(req);
-			return result;
+			return result as any;
 		} catch (e) {
 			if (
 				!e.toString().includes('Socket is not open') &&

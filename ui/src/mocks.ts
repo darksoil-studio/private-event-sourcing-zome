@@ -1,4 +1,18 @@
 import {
+	AgentPubKeyMap,
+	HashType,
+	HoloHashMap,
+	ZomeMock,
+	decodeEntry,
+	fakeCreateAction,
+	fakeDeleteEntry,
+	fakeEntry,
+	fakeRecord,
+	fakeUpdateEntry,
+	hash,
+	pickBy,
+} from '@darksoil-studio/holochain-utils';
+import {
 	ActionHash,
 	AgentPubKey,
 	AppClient,
@@ -14,20 +28,6 @@ import {
 	fakeDnaHash,
 	fakeEntryHash,
 } from '@holochain/client';
-import {
-	AgentPubKeyMap,
-	HashType,
-	HoloHashMap,
-	ZomeMock,
-	decodeEntry,
-	fakeCreateAction,
-	fakeDeleteEntry,
-	fakeEntry,
-	fakeRecord,
-	fakeUpdateEntry,
-	hash,
-	pickBy,
-} from '@tnesh-stack/utils';
 
 import { PrivateEventSourcingClient } from './private-event-sourcing-client.js';
 

@@ -2,10 +2,11 @@
 
 {
   perSystem = { inputs', system, ... }: {
-    packages.example = inputs.tnesh-stack.outputs.builders.${system}.rustZome {
-      workspacePath = inputs.self.outPath;
-      crateCargoToml = ./Cargo.toml;
-    };
+    packages.example =
+      inputs.holochain-nix-builders.outputs.builders.${system}.rustZome {
+        workspacePath = inputs.self.outPath;
+        crateCargoToml = ./Cargo.toml;
+      };
   };
 }
 

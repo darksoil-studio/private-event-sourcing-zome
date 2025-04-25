@@ -31,7 +31,7 @@ pub fn create_encrypted_message(
         .into_iter()
         .map(|chunk| {
             ed_25519_x_salsa20_poly1305_encrypt(
-                agent_info()?.agent_latest_pubkey,
+                agent_info()?.agent_initial_pubkey,
                 recipient.clone(),
                 chunk,
             )
@@ -100,7 +100,7 @@ pub fn get_message(agent_encrypted_message_link: &Link) -> ExternResult<Option<E
 }
 
 pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<()> {
-    let my_pub_key = agent_info()?.agent_latest_pubkey;
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
     let links = get_agent_encrypted_messages(my_pub_key.clone())?;
 
     for link in links {
