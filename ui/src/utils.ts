@@ -1,4 +1,4 @@
-import { AsyncState, Signal } from '@tnesh-stack/signals';
+import { AsyncState, Signal } from '@darksoil-studio/holochain-signals';
 
 export function asyncReadable<T>(
 	initFn: (set: (value: T) => void) => Promise<(() => void) | void>,

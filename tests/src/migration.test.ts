@@ -1,3 +1,4 @@
+import { toPromise } from '@darksoil-studio/holochain-signals';
 import {
 	LinkedDevicesClient,
 	LinkedDevicesStore,
@@ -10,7 +11,6 @@ import {
 	pause,
 	runScenario,
 } from '@holochain/tryorama';
-import { toPromise } from '@tnesh-stack/signals';
 import { assert, expect, test } from 'vitest';
 
 import { PrivateEventSourcingClient } from '../../ui/src/private-event-sourcing-client.js';
@@ -34,7 +34,8 @@ test('create a shared entry gets to each source chain', async () => {
 
 		const appInfo = await alice.player.conductor.installApp(
 			{
-				path: testHappUrl,
+				type: 'path',
+				value: testHappUrl,
 			},
 			{
 				agentPubKey: alice.player.cells[0].cell_id[1],
@@ -55,10 +56,12 @@ test('create a shared entry gets to each source chain', async () => {
 		);
 
 		const previousAppInfo = await alice.store.client.client.appInfo();
-		const previousCellId: CellId =
-			previousAppInfo.cell_info['private_event_sourcing_test'][0][
-				CellType.Provisioned
-			].cell_id;
+		const cellInfo =
+			previousAppInfo.cell_info['private_event_sourcing_test'][0];
+		if (cellInfo.type !== 'provisioned')
+			throw new Error('Unexpected cell type.');
+
+		const previousCellId: CellId = cellInfo.value.cell_id;
 
 		await appWs.callZome({
 			role_name: 'private_event_sourcing_test',

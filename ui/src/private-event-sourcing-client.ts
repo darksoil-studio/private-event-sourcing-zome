@@ -1,5 +1,5 @@
 import { AgentPubKey, AppClient, EntryHashB64 } from '@holochain/client';
-import { ZomeClient } from '@tnesh-stack/utils';
+import { ZomeClient } from '@darksoil-studio/holochain-utils';
 
 import { PrivateEventEntry, PrivateEventSourcingSignal } from './types.js';
 

@@ -3,14 +3,16 @@
 
   inputs = {
     linked-devices-zome.url =
-      "github:darksoil-studio/linked-devices-zome/main-0.4";
-    holonix.url = "github:holochain/holonix/main-0.4";
+      "github:darksoil-studio/linked-devices-zome/main-0.5";
+    holonix.url = "github:holochain/holonix/main-0.5";
 
     nixpkgs.follows = "holonix/nixpkgs";
     flake-parts.follows = "holonix/flake-parts";
 
-    tnesh-stack.url = "github:darksoil-studio/tnesh-stack/main-0.4";
-    playground.url = "github:darksoil-studio/holochain-playground/main-0.4";
+    scaffolding.url = "github:darksoil-studio/scaffolding/main-0.5";
+    holochain-nix-builders.url =
+      "github:darksoil-studio/holochain-nix-builders/main-0.5";
+    playground.url = "github:darksoil-studio/holochain-playground/main-0.5";
   };
 
   nixConfig = {
@@ -38,21 +40,21 @@
       perSystem = { inputs', config, pkgs, system, ... }: {
         devShells.default = pkgs.mkShell {
           inputsFrom = [
-            inputs'.tnesh-stack.devShells.synchronized-pnpm
+            inputs'.scaffolding.devShells.synchronized-pnpm
             inputs'.holonix.devShells.default
           ];
 
           packages = [
-            inputs'.tnesh-stack.packages.holochain
-            inputs'.tnesh-stack.packages.hc-scaffold-zome
+            inputs'.holochain-nix-builders.packages.holochain
+            inputs'.scaffolding.packages.hc-scaffold-zome
             inputs'.playground.packages.hc-playground
           ];
         };
-        devShells.npm-ci = inputs'.tnesh-stack.devShells.synchronized-pnpm;
+        devShells.npm-ci = inputs'.scaffolding.devShells.synchronized-pnpm;
 
         packages.scaffold = pkgs.symlinkJoin {
           name = "scaffold-remote-zome";
-          paths = [ inputs'.tnesh-stack.packages.scaffold-remote-zome ];
+          paths = [ inputs'.scaffolding.packages.scaffold-remote-zome ];
           buildInputs = [ pkgs.makeWrapper ];
           postBuild = ''
             wrapProgram $out/bin/scaffold-remote-zome \
@@ -61,7 +63,7 @@
                 --coordinator-zome-name private_event_sourcing \
                 --remote-zome-git-url github:darksoil-studio/private-event-sourcing-zome \
                 --remote-npm-package-name @darksoil-studio/private-event-sourcing-zome \
-                --remote-zome-git-branch main-0.4 \
+                --remote-zome-git-branch main-0.5 \
                 --context-element private-event-sourcing-context \
                 --context-element-import @darksoil-studio/private-event-sourcing-zome/dist/elements/private-event-sourcing-context.js" 
           '';

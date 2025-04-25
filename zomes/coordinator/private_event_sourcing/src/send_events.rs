@@ -14,7 +14,7 @@ use crate::{
 pub fn send_events<T: PrivateEvent>(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
     let entries = query_private_event_entries(())?;
 
-    let my_pub_key = agent_info()?.agent_latest_pubkey;
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
     let now = sys_time()?.as_millis();
 
     let filtered_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = entries

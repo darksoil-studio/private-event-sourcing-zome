@@ -92,7 +92,7 @@ pub fn get_all_agents_for(agent: AgentPubKey) -> ExternResult<BTreeSet<AgentPubK
 
 pub fn query_all_my_agents() -> ExternResult<BTreeSet<AgentPubKey>> {
     let mut agents = query_my_linked_devices()?;
-    agents.insert(agent_info()?.agent_latest_pubkey);
+    agents.insert(agent_info()?.agent_initial_pubkey);
     Ok(agents)
 }
 

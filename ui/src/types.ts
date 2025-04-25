@@ -4,7 +4,7 @@ import {
 	Signature,
 	Timestamp,
 } from '@holochain/client';
-import { ActionCommittedSignal } from '@tnesh-stack/utils';
+import { ActionCommittedSignal } from '@darksoil-studio/holochain-utils';
 
 export type PrivateEventSourcingSignal =
 	| ActionCommittedSignal<EntryTypes, LinkTypes>

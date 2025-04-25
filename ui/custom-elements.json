@@ -99,7 +99,7 @@
           "name": "PrivateEventSourcingZomeMock",
           "superclass": {
             "name": "ZomeMock",
-            "package": "@tnesh-stack/utils"
+            "package": "@darksoil-studio/holochain-utils"
           }
         }
       ],
@@ -156,7 +156,7 @@
           ],
           "superclass": {
             "name": "ZomeClient",
-            "package": "@tnesh-stack/utils"
+            "package": "@darksoil-studio/holochain-utils"
           }
         }
       ],
