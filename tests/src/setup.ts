@@ -23,11 +23,6 @@ export async function setup(scenario: Scenario, numPlayers = 2) {
 	// conductor of the scenario.
 	await scenario.shareAllAgents();
 
-	await dhtSync(
-		players.map(p => p.player),
-		players[0].player.cells[0].cell_id[0],
-	);
-
 	console.log('Setup completed!');
 
 	return players;
@@ -51,6 +46,7 @@ async function addPlayer(scenario: Scenario) {
 		),
 		linkedDevicesStore,
 	);
+	await pause(1000);
 
 	return {
 		store,
