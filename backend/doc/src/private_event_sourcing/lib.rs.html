@@ -364,8 +364,8 @@
         .collect();
 
     <span class="kw">if </span>new_private_event_hashes.len() &gt; <span class="number">0 </span>{
-        <span class="kw">let </span>result = call_remote(
-            agent_info()<span class="question-mark">?</span>.agent_initial_pubkey,
+        <span class="kw">let </span>result = call(
+            CallTargetCell::Local,
             zome_info()<span class="question-mark">?</span>.name,
             <span class="string">"send_events"</span>.into(),
             <span class="prelude-val">None</span>,
@@ -374,8 +374,8 @@
         <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
         };
-        <span class="kw">let </span>result = call_remote(
-            agent_info()<span class="question-mark">?</span>.agent_initial_pubkey,
+        <span class="kw">let </span>result = call(
+            CallTargetCell::Local,
             zome_info()<span class="question-mark">?</span>.name,
             <span class="string">"attempt_commit_awaiting_deps_entries"</span>.into(),
             <span class="prelude-val">None</span>,
