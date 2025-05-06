@@ -109,8 +109,8 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         .collect();
 
     if new_private_event_hashes.len() > 0 {
-        let result = call_remote(
-            agent_info()?.agent_initial_pubkey,
+        let result = call(
+            CallTargetCell::Local,
             zome_info()?.name,
             "send_events".into(),
             None,
@@ -119,8 +119,8 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!("Error calling 'send_events': {:?}", result));
         };
-        let result = call_remote(
-            agent_info()?.agent_initial_pubkey,
+        let result = call(
+            CallTargetCell::Local,
             zome_info()?.name,
             "attempt_commit_awaiting_deps_entries".into(),
             None,

@@ -2,7 +2,7 @@
 	"name": "private-event-sourcing-dev",
 	"private": true,
 	"scripts": {
-		"test": "pnpm build:happ && pnpm -F tests test",
+		"test": "pnpm build:happ && WASM_LOG=warn pnpm -F tests test",
 		"build:happ": "nix build -L .#private_event_sourcing_test_happ.meta.debug -o workdir/private-event-sourcing_test.happ"
 	},
 	"devDependencies": {
