@@ -1876,11 +1876,11 @@
         "versions": "versions"
       },
       "locked": {
-        "lastModified": 1746542543,
-        "narHash": "sha256-6dDtRSLCFqxypFbSK8PbEseyzoF9FlqELAmEWBvYvIk=",
+        "lastModified": 1746542863,
+        "narHash": "sha256-KHWrwxdI+oQoljj96YSTob0j0Excgid0Fuwtn+K92ss=",
         "owner": "guillemcordoba",
         "repo": "holochain",
-        "rev": "89bab93eff94fddfa05847d84251d1ef9e1a430a",
+        "rev": "1c7ec0f29639e53865e5d2ce88db00c0f60349eb",
         "type": "github"
       },
       "original": {
@@ -1911,17 +1911,18 @@
         ]
       },
       "locked": {
-        "lastModified": 1746542563,
-        "narHash": "sha256-MQq5jrYrX023XIWMZ/TqDVdRhn6wwlvkazcKroOEqYc=",
-        "ref": "refs/heads/main",
-        "rev": "cecb56ab9ed03d15d1e3a245a8f0d731f2635d67",
-        "revCount": 16,
-        "type": "git",
-        "url": "file:///home/guillem/projects/darksoil/holochain-nix-builders"
+        "lastModified": 1746542894,
+        "narHash": "sha256-Wd+CbSCLCwq3QvRPTWdpXFdr5b7+t+BVYIbW7qu/G20=",
+        "owner": "darksoil-studio",
+        "repo": "holochain-nix-builders",
+        "rev": "7d3ae056eb71168b6a21babda86605e040fc4e2f",
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///home/guillem/projects/darksoil/holochain-nix-builders"
+        "owner": "darksoil-studio",
+        "ref": "main-0.5",
+        "repo": "holochain-nix-builders",
+        "type": "github"
       }
     },
     "holochain-nix-builders_10": {
