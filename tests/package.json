@@ -2,7 +2,7 @@
 	"name": "tests",
 	"private": true,
 	"scripts": {
-		"test": "WASM_LOG=debug vitest run"
+		"test": "RUST_LOG=info WASM_LOG=debug vitest run"
 	},
 	"dependencies": {
 		"@darksoil-studio/linked-devices-zome": "^0.500.0-rev",

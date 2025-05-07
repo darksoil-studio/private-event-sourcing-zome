@@ -49,7 +49,12 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 		let privateEvents = await toPromise(alice.store.privateEvents);
 		assert.equal(Object.keys(privateEvents).length, 1);
 
-		await pause(2000);
+		await dhtSync(
+			[alice.player, carol.player],
+			alice.player.cells[0].cell_id[0],
+			2000,
+			1000 * 60 * 60 * 3, // 30 mins
+		);
 
 		await alice.player.conductor.shutDown();
 

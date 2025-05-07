@@ -4,7 +4,6 @@ import { assert, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
 
-// TODO: reenable this test
 test('big entries get gossiped asynchronously', async () => {
 	await runScenario(async scenario => {
 		const [alice, bob, carol] = await setup(scenario, 3);

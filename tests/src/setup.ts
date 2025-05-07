@@ -34,6 +34,10 @@ async function addPlayer(scenario: Scenario) {
 		value: testHappUrl,
 	});
 
+	await player.conductor
+		.adminWs()
+		.authorizeSigningCredentials(player.cells[0].cell_id);
+
 	const linkedDevicesStore = new LinkedDevicesStore(
 		new LinkedDevicesClient(player.appWs as any, 'private_event_sourcing_test'),
 	);
