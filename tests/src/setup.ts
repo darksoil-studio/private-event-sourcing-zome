@@ -29,10 +29,18 @@ export async function setup(scenario: Scenario, numPlayers = 2) {
 }
 
 async function addPlayer(scenario: Scenario) {
-	const player = await scenario.addPlayerWithApp({
-		type: 'path',
-		value: testHappUrl,
-	});
+	const player = await scenario.addPlayerWithApp(
+		{
+			type: 'path',
+			value: testHappUrl,
+		},
+		{
+			networkConfig: {
+				roundTimeoutMs: 3000,
+				transportTimeoutS: 3,
+			},
+		},
+	);
 
 	await player.conductor
 		.adminWs()
@@ -51,6 +59,7 @@ async function addPlayer(scenario: Scenario) {
 		linkedDevicesStore,
 	);
 	await pause(1000);
+	await store.client.queryPrivateEventEntries();
 
 	return {
 		store,

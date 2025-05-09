@@ -53,7 +53,7 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 			[alice.player, carol.player],
 			alice.player.cells[0].cell_id[0],
 			2000,
-			1000 * 60 * 60 * 3, // 30 mins
+			1000 * 60 * 3, // 3 mins
 		);
 
 		await alice.player.conductor.shutDown();
