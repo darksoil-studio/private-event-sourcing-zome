@@ -38,7 +38,7 @@ pub fn send_events_to_linked_devices_and_recipients<T: PrivateEvent>(
     }
 
     debug!(
-        "[send_events] Sending events to linked devices and recipients: {:?}",
+        "[send_events] Sending events to linked devices and recipients if necessary: {:?}",
         events.keys()
     );
 
@@ -92,17 +92,19 @@ pub fn send_events_to_linked_devices_and_recipients<T: PrivateEvent>(
                 })
                 .collect();
 
-        info!("Sending private events entry to recipient: {recipient:?}.");
+        if !events_to_send.is_empty() {
+            info!("Sending private events entry to recipient: {recipient:?}.");
 
-        send_remote_signal(
-            SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(
-                events_to_send.clone(),
-            ))
-            .map_err(|err| wasm_error!(err))?,
-            vec![recipient.clone()],
-        )?;
+            send_remote_signal(
+                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(
+                    events_to_send.clone(),
+                ))
+                .map_err(|err| wasm_error!(err))?,
+                vec![recipient.clone()],
+            )?;
 
-        create_encrypted_message(recipient, events_to_send)?;
+            create_encrypted_message(recipient, events_to_send)?;
+        }
     }
 
     Ok(())
