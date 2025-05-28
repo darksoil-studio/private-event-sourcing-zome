@@ -188,7 +188,9 @@
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
@@ -228,7 +230,7 @@
     }
 
     <span class="macro">debug!</span>(
-        <span class="string">"[send_events] Sending events to linked devices and recipients: {:?}"</span>,
+        <span class="string">"[send_events] Sending events to linked devices and recipients if necessary: {:?}"</span>,
         events.keys()
     );
 
@@ -282,17 +284,19 @@
                 })
                 .collect();
 
-        <span class="macro">info!</span>(<span class="string">"Sending private events entry to recipient: {recipient:?}."</span>);
+        <span class="kw">if </span>!events_to_send.is_empty() {
+            <span class="macro">info!</span>(<span class="string">"Sending private events entry to recipient: {recipient:?}."</span>);
 
-        send_remote_signal(
-            SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(
-                events_to_send.clone(),
-            ))
-            .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
-            <span class="macro">vec!</span>[recipient.clone()],
-        )<span class="question-mark">?</span>;
+            send_remote_signal(
+                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(
+                    events_to_send.clone(),
+                ))
+                .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
+                <span class="macro">vec!</span>[recipient.clone()],
+            )<span class="question-mark">?</span>;
 
-        create_encrypted_message(recipient, events_to_send)<span class="question-mark">?</span>;
+            create_encrypted_message(recipient, events_to_send)<span class="question-mark">?</span>;
+        }
     }
 
     <span class="prelude-val">Ok</span>(())
