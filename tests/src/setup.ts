@@ -29,18 +29,12 @@ export async function setup(scenario: Scenario, numPlayers = 2) {
 }
 
 async function addPlayer(scenario: Scenario) {
-	const player = await scenario.addPlayerWithApp(
-		{
+	const player = await scenario.addPlayerWithApp({
+		appBundleSource: {
 			type: 'path',
 			value: testHappUrl,
 		},
-		{
-			networkConfig: {
-				roundTimeoutMs: 3000,
-				transportTimeoutS: 3,
-			},
-		},
-	);
+	});
 
 	await player.conductor
 		.adminWs()

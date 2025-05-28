@@ -29,6 +29,8 @@ test('big entries get gossiped asynchronously', async () => {
 		await dhtSync(
 			[alice.player, carol.player],
 			alice.player.cells[0].cell_id[0],
+			500,
+			500_000,
 		);
 
 		await alice.player.conductor.shutDown();

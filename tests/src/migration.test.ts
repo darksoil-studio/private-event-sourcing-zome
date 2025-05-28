@@ -32,16 +32,16 @@ test('create a shared entry gets to each source chain', async () => {
 			},
 		});
 
-		const appInfo = await alice.player.conductor.installApp(
-			{
+		const appInfo = await alice.player.conductor.installApp({
+			appBundleSource: {
 				type: 'path',
 				value: testHappUrl,
 			},
-			{
+			options: {
 				agentPubKey: alice.player.cells[0].cell_id[1],
 				networkSeed: 'second app',
 			},
-		);
+		});
 		const port = await alice.player.conductor.attachAppInterface();
 		const issued = await alice.player.conductor
 			.adminWs()
