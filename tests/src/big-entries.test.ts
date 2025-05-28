@@ -1,8 +1,9 @@
 import { toPromise } from '@darksoil-studio/holochain-signals';
-import { dhtSync, pause, runScenario } from '@holochain/tryorama';
+import { runScenario } from '@holochain/tryorama';
 import { assert, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
+import { dhtSync } from './sync.js';
 
 test('big entries get gossiped asynchronously', async () => {
 	await runScenario(async scenario => {

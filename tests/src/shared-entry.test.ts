@@ -1,8 +1,9 @@
 import { toPromise } from '@darksoil-studio/holochain-signals';
-import { dhtSync, pause, runScenario } from '@holochain/tryorama';
+import { pause, runScenario } from '@holochain/tryorama';
 import { assert, expect, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
+import { dhtSync } from './sync.js';
 
 test('create a shared entry gets to each source chain', async () => {
 	await runScenario(async scenario => {
