@@ -4,7 +4,6 @@ import { assert, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
 
-// TODO: reenable this test
 test('big entries get gossiped asynchronously', async () => {
 	await runScenario(async scenario => {
 		const [alice, bob, carol] = await setup(scenario, 3);
@@ -30,6 +29,8 @@ test('big entries get gossiped asynchronously', async () => {
 		await dhtSync(
 			[alice.player, carol.player],
 			alice.player.cells[0].cell_id[0],
+			500,
+			500_000,
 		);
 
 		await alice.player.conductor.shutDown();

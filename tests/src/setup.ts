@@ -30,9 +30,15 @@ export async function setup(scenario: Scenario, numPlayers = 2) {
 
 async function addPlayer(scenario: Scenario) {
 	const player = await scenario.addPlayerWithApp({
-		type: 'path',
-		value: testHappUrl,
+		appBundleSource: {
+			type: 'path',
+			value: testHappUrl,
+		},
 	});
+
+	await player.conductor
+		.adminWs()
+		.authorizeSigningCredentials(player.cells[0].cell_id);
 
 	const linkedDevicesStore = new LinkedDevicesStore(
 		new LinkedDevicesClient(player.appWs as any, 'private_event_sourcing_test'),
@@ -47,6 +53,7 @@ async function addPlayer(scenario: Scenario) {
 		linkedDevicesStore,
 	);
 	await pause(1000);
+	await store.client.queryPrivateEventEntries();
 
 	return {
 		store,
