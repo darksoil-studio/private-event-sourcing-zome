@@ -1,4 +1,3 @@
-
 import {
 	CellId,
 	DnaHash,
@@ -81,7 +80,7 @@ export const areConductorCellsDhtsSynced = async (
 	const allDhtOpsIntegrated = conductorStates.every(
 		(state: FullStateDump) =>
 			// state.integration_dump.integrated.length === totalPublishedDhtOpsCount &&
-			// state.integration_dump.integration_limbo.length === 0 &&
+			state.integration_dump.integration_limbo.length === 0 &&
 			state.integration_dump.validation_limbo.length === 0,
 	);
 
@@ -113,12 +112,14 @@ export const areConductorCellsDhtsSynced = async (
 	const allDhtOpsSynced = conductorDhtOpsIntegrated.every(ops =>
 		isEqual(ops, conductorDhtOpsIntegrated[0]),
 	);
-	// console.log(
-	// 	allDhtOpsSynced,
-	// 	allDhtOpsIntegrated,
-	// 	conductorStates.map(s => s.integration_dump.validation_limbo.length),
-	// 	conductorStates.map(s => s.integration_dump.integration_limbo.length),
-	// );
+	console.log(
+		allDhtOpsSynced,
+		allDhtOpsIntegrated,
+		totalPublishedDhtOpsCount,
+		conductorStates.map(s => s.integration_dump.integrated.length),
+		conductorStates.map(s => s.integration_dump.validation_limbo.length),
+		conductorStates.map(s => s.integration_dump.integration_limbo.length),
+	);
 
 	return allDhtOpsSynced && allDhtOpsIntegrated;
 };
@@ -200,4 +201,4 @@ const isConductorCellDnaHashEqual = (conductorCells: ConductorCell[]) => {
 		conductorCell => conductorCell.cellId[0],
 	);
 	return dnaHashes.every((val: DnaHash) => val === dnaHashes[0]);
-}
+};

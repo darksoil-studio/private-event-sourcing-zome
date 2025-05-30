@@ -46,7 +46,7 @@
           ];
 
           packages = [
-            inputs'.holochain-nix-builders.packages.holochain
+            inputs'.holochain-nix-builders.packages.custom-holochain
             inputs'.scaffolding.packages.hc-scaffold-zome
             inputs'.playground.packages.hc-playground
           ];
