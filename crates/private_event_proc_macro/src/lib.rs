@@ -35,13 +35,23 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn send_events(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
-            private_event_sourcing::send_events::<#ident>(events_hashes)
+        pub fn send_events() -> ExternResult<()> {
+            private_event_sourcing::send_events::<#ident>()
+        }
+
+        // #[hdk_extern]
+        // pub fn commit_my_pending_encrypted_messages() -> ExternResult<()> {
+        //     private_event_sourcing::commit_my_pending_encrypted_messages::<#ident>()
+        // }
+
+        #[hdk_extern]
+        pub fn receive_private_events(events: BTreeMap<EntryHashB64, PrivateEventEntry>) -> ExternResult<()> {
+            private_event_sourcing::receive_private_events::<#ident>(events)
         }
 
         #[hdk_extern]
-        pub fn commit_my_pending_encrypted_messages() -> ExternResult<()> {
-            private_event_sourcing::commit_my_pending_encrypted_messages::<#ident>()
+        pub fn create_acknowledgements(events_hashes: BTreeSet<EntryHashB64>) -> ExternResult<()> {
+            private_event_sourcing::create_acknowledgements::<#ident>(events_hashes)
         }
 
         #[hdk_extern(infallible)]

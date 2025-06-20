@@ -1,13 +1,9 @@
-use core::hash;
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 use std::collections::BTreeMap;
 
 use crate::{
-    linked_devices::query_my_linked_devices,
-    send_events::{self, send_events_to_linked_devices_and_recipients},
-    utils::create_relaxed,
-    Signal,
+    linked_devices::query_my_linked_devices, query_event_histories, utils::create_relaxed, Signal,
 };
 
 pub trait EventType {
@@ -33,15 +29,21 @@ pub trait PrivateEvent:
         timestamp: Timestamp,
     ) -> ExternResult<BTreeSet<AgentPubKey>>;
 
-    /// Code to run after an event has been committed
-    fn post_commit(
-        &self,
-        entry_hash: EntryHash,
-        author: AgentPubKey,
-        timestamp: Timestamp,
-    ) -> ExternResult<()> {
-        Ok(())
-    }
+    // /// Code to run after an event has been committed
+    // fn post_commit(
+    //     &self,
+    //     entry_hash: EntryHash,
+    //     author: AgentPubKey,
+    //     timestamp: Timestamp,
+    // ) -> ExternResult<()> {
+    //     Ok(())
+    // }
+
+    /// Send the event to this specific recipients
+    fn send_message(
+        recipients: BTreeSet<AgentPubKey>,
+        private_event_entry: PrivateEventEntry,
+    ) -> ExternResult<()>;
 }
 
 #[hdk_entry_helper]
@@ -95,19 +97,6 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
     internal_create_private_event::<T>(entry)
 }
 
-pub fn send_private_events_to_new_recipients<T: PrivateEvent>(
-    events_hashes: BTreeSet<EntryHash>,
-) -> ExternResult<()> {
-    let entries = query_private_event_entries(())?;
-
-    let filtered_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = entries
-        .into_iter()
-        .filter(|(key, _value)| events_hashes.contains(&EntryHash::from(key.clone())))
-        .collect();
-
-    send_events_to_linked_devices_and_recipients::<T>(filtered_entries)
-}
-
 pub fn validate_private_event_entry<T: PrivateEvent>(
     entry_hash: EntryHash,
     private_event_entry: &PrivateEventEntry,
@@ -154,7 +143,6 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
 }
 
 pub fn receive_private_events<T: PrivateEvent>(
-    provenance: AgentPubKey,
     private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
 ) -> ExternResult<()> {
     debug!("[receive_private_events/start]");
@@ -224,13 +212,13 @@ pub(crate) fn internal_create_private_event<T: PrivateEvent>(
         private_event_entry: private_event_entry.clone(),
     })?;
 
-    let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    private_event.post_commit(
-        entry_hash.clone(),
-        private_event_entry.0.author,
-        private_event_entry.0.event.timestamp,
-    )?;
+    // let private_event = T::try_from(private_event_entry.0.event.content.clone())
+    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
+    // private_event.post_commit(
+    //     entry_hash.clone(),
+    //     private_event_entry.0.author,
+    //     private_event_entry.0.event.timestamp,
+    // )?;
 
     Ok(entry_hash)
 }
@@ -308,26 +296,6 @@ pub fn query_private_event_entries() -> ExternResult<BTreeMap<EntryHashB64, Priv
     }
 
     Ok(private_event_entries)
-}
-
-pub fn query_event_histories() -> ExternResult<Vec<EventHistory>> {
-    let filter = ChainQueryFilter::new()
-        .entry_type(UnitEntryTypes::EventHistory.try_into()?)
-        .include_entries(true)
-        .action_type(ActionType::Create);
-    let records = query(filter)?;
-    let event_histories = records
-        .into_iter()
-        .map(|r| {
-            let Some(entry) = r.entry().as_option().clone() else {
-                return Err(wasm_error!("PrivateEvents record contained no entry."));
-            };
-            let entry = EventHistory::try_from(entry)?;
-            Ok(entry)
-        })
-        .collect::<ExternResult<Vec<EventHistory>>>()?;
-
-    Ok(event_histories)
 }
 
 pub fn query_private_event_entry(event_hash: EntryHash) -> ExternResult<Option<PrivateEventEntry>> {
