@@ -46,7 +46,7 @@ impl PrivateEvent for Event {
         Ok(())
     }
     fn send_acknowledgement(
-        recipient: AgentPubKey,
+        recipients: BTreeSet<AgentPubKey>,
         acknowledgement: Acknowledgement,
     ) -> ExternResult<()> {
         Ok(())

@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 
 use crate::{
     acknowledgements::create_acknowledgement, linked_devices::query_my_linked_devices,
-    query_event_histories, utils::create_relaxed, Signal,
+    query_acknowledgement_for, query_event_histories, send_acknowledgement_for_event_to_recipient,
+    utils::create_relaxed, Signal,
 };
 
 pub trait EventType {
@@ -48,7 +49,7 @@ pub trait PrivateEvent:
 
     /// Send the event to this specific recipients
     fn send_acknowledgement(
-        recipient: AgentPubKey,
+        recipients: BTreeSet<AgentPubKey>,
         acknowledgement: Acknowledgement,
     ) -> ExternResult<()>;
 }
@@ -167,9 +168,7 @@ pub fn receive_private_events<T: PrivateEvent>(
     for (entry_hash, private_event_entry) in ordered_their_private_event_entries {
         if my_private_event_entries.contains_key(&entry_hash) {
             // We already have this message committed
-            if provenance.eq(&private_event_entry.0.author) {
-                create_acknowledgement::<T>(entry_hash)?;
-            }
+            send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
             continue;
         }
 
