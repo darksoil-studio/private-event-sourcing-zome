@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+pub use acknowledgements::*;
 use hdk::prelude::*;
 pub use private_event_sourcing_integrity::*;
 
@@ -23,7 +24,6 @@ pub use strum::IntoStaticStr;
 pub use private_event_proc_macro::*;
 
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
-    commit_my_pending_encrypted_messages::<T>()?;
     send_events::<T>()?;
     Ok(())
 }
@@ -79,16 +79,19 @@ pub enum Signal {
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 pub enum PrivateEventSourcingRemoteSignal {
     SendPrivateEvents(BTreeMap<EntryHashB64, PrivateEventEntry>),
-    // SynchronizeEntriesWithLinkedDevice(BTreeMap<EntryHashB64, PrivateEventEntry>),
+    SendAcknowledgements(Vec<Acknowledgement>),
 }
 
 pub fn recv_private_events_remote_signal<T: PrivateEvent>(
     signal: PrivateEventSourcingRemoteSignal,
 ) -> ExternResult<()> {
-    // let provenance = call_info()?.provenance;
+    let provenance = call_info()?.provenance;
     match signal {
         PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) => {
-            receive_private_events::<T>(private_event_entries)
+            receive_private_events::<T>(provenance, private_event_entries)
+        }
+        PrivateEventSourcingRemoteSignal::SendAcknowledgements(acknowledgements) => {
+            receive_acknowledgements::<T>(acknowledgements)
         }
     }
 }
@@ -112,6 +115,19 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let result = call(
             CallTargetCell::Local,
             zome_info()?.name,
+            "create_acknowledgements".into(),
+            None,
+            new_private_event_hashes,
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!(
+                "Error calling 'create_acknowledgements': {:?}",
+                result
+            ));
+        };
+        let result = call(
+            CallTargetCell::Local,
+            zome_info()?.name,
             "send_events".into(),
             None,
             (),
@@ -119,19 +135,6 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!("Error calling 'send_events': {:?}", result));
         };
-        // let result = call(
-        //     CallTargetCell::Local,
-        //     zome_info()?.name,
-        //     "create_acknowledgements".into(),
-        //     None,
-        //     new_private_event_hashes,
-        // )?;
-        // let ZomeCallResponse::Ok(_) = result else {
-        //     return Err(wasm_error!(
-        //         "Error calling 'create_acknowledgements': {:?}",
-        //         result
-        //     ));
-        // };
         let result = call(
             CallTargetCell::Local,
             zome_info()?.name,

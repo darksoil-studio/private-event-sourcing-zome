@@ -1,22 +1,5 @@
 use hdi::prelude::*;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SignedContent<T> {
-    pub timestamp: Timestamp,
-    pub event_type: String,
-    pub content: T,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SignedEvent<T> {
-    pub author: AgentPubKey,
-    pub signature: Signature,
-    pub event: SignedContent<T>,
-}
-
-#[hdk_entry_helper]
-#[derive(Clone)]
-pub struct PrivateEventEntry(pub SignedEvent<SerializedBytes>);
+pub use private_event_sourcing_types::*;
 
 pub fn validate_create_private_event(
     _action: EntryCreationAction,

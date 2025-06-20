@@ -3,7 +3,8 @@ use private_event_sourcing_integrity::*;
 use std::collections::BTreeMap;
 
 use crate::{
-    linked_devices::query_my_linked_devices, query_event_histories, utils::create_relaxed, Signal,
+    acknowledgements::create_acknowledgement, linked_devices::query_my_linked_devices,
+    query_event_histories, utils::create_relaxed, Signal,
 };
 
 pub trait EventType {
@@ -40,9 +41,15 @@ pub trait PrivateEvent:
     // }
 
     /// Send the event to this specific recipients
-    fn send_message(
+    fn send_event(
         recipients: BTreeSet<AgentPubKey>,
         private_event_entry: PrivateEventEntry,
+    ) -> ExternResult<()>;
+
+    /// Send the event to this specific recipients
+    fn send_acknowledgement(
+        recipient: AgentPubKey,
+        acknowledgement: Acknowledgement,
     ) -> ExternResult<()>;
 }
 
@@ -143,6 +150,7 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
 }
 
 pub fn receive_private_events<T: PrivateEvent>(
+    provenance: AgentPubKey,
     private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
 ) -> ExternResult<()> {
     debug!("[receive_private_events/start]");
@@ -159,6 +167,9 @@ pub fn receive_private_events<T: PrivateEvent>(
     for (entry_hash, private_event_entry) in ordered_their_private_event_entries {
         if my_private_event_entries.contains_key(&entry_hash) {
             // We already have this message committed
+            if provenance.eq(&private_event_entry.0.author) {
+                create_acknowledgement::<T>(entry_hash)?;
+            }
             continue;
         }
 
@@ -182,19 +193,23 @@ pub fn receive_private_events<T: PrivateEvent>(
                 warn!(
                     "Received a PrivateEvent {entry_hash} but we don't have all its dependencies: adding it to the awaiting dependencies queue."
                 );
-                create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
-                    event: private_event_entry,
-                    unresolved_dependencies,
-                }))?;
+                create_relaxed(EntryTypes::AwaitingDependencies(
+                    AwaitingDependencies::Event {
+                        event: private_event_entry,
+                        unresolved_dependencies,
+                    },
+                ))?;
             }
             Err(_) => {
                 warn!(
                     "Received a PrivateEvent {entry_hash} but its validation failed: adding it to the awaiting dependencies queue."
                 );
-                create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
-                    event: private_event_entry,
-                    unresolved_dependencies: UnresolvedDependencies::Hashes(vec![]),
-                }))?;
+                create_relaxed(EntryTypes::AwaitingDependencies(
+                    AwaitingDependencies::Event {
+                        event: private_event_entry,
+                        unresolved_dependencies: UnresolvedDependencies::Hashes(vec![]),
+                    },
+                ))?;
             }
         }
     }

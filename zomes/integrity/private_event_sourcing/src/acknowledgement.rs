@@ -1,13 +1,13 @@
 use hdi::prelude::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AcknowledgementContent {
-    pub received_private_events_hashes: BTreeSet<EntryHash>,
+    pub private_event_hash: EntryHash,
     pub timestamp: Timestamp,
 }
 
 #[hdk_entry_helper]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Acknowledgement {
     pub author: AgentPubKey,
     pub signature: Signature,

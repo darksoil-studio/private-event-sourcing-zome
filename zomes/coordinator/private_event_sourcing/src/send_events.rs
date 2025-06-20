@@ -87,7 +87,7 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
                 recipients_to_send.clone().into_iter().collect(),
             )?;
 
-            T::send_message(recipients_to_send.clone(), private_event_entry)?;
+            T::send_event(recipients_to_send.clone(), private_event_entry)?;
 
             new_events_sent_to_recipients.insert(EntryHash::from(event_hash), recipients_to_send);
         }

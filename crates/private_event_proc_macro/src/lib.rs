@@ -39,14 +39,9 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
             private_event_sourcing::send_events::<#ident>()
         }
 
-        // #[hdk_extern]
-        // pub fn commit_my_pending_encrypted_messages() -> ExternResult<()> {
-        //     private_event_sourcing::commit_my_pending_encrypted_messages::<#ident>()
-        // }
-
         #[hdk_extern]
-        pub fn receive_private_events(events: BTreeMap<EntryHashB64, PrivateEventEntry>) -> ExternResult<()> {
-            private_event_sourcing::receive_private_events::<#ident>(events)
+        pub fn receive_private_events(input: ReceivePrivateEventsInput) -> ExternResult<()> {
+            private_event_sourcing::receive_private_events::<#ident>(input.provenance, input.private_events)
         }
 
         #[hdk_extern]

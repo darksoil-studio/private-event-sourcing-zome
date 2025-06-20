@@ -719,6 +719,15 @@ name = "private_event_sourcing_integrity"
 version = "0.0.1"
 dependencies = [
  "hdi",
+ "private_event_sourcing_types",
+ "serde",
+]
+
+[[package]]
+name = "private_event_sourcing_types"
+version = "0.1.0"
+dependencies = [
+ "hdk",
  "serde",
 ]
 
