@@ -1,5 +1,5 @@
+use encrypted_links_integrity::*;
 use hdk::prelude::*;
-use private_event_sourcing_integrity::*;
 
 pub fn create_relaxed(entry_type: EntryTypes) -> ExternResult<ActionHash> {
     HDK.with(|h| {
