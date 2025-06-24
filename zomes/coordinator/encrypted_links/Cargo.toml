@@ -1,0 +1,15 @@
+[package]
+name = "encrypted_links"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+hdk = { workspace = true }
+
+serde = { workspace = true }
+
+encrypted_links_integrity = { path = "../../integrity/encrypted_links" }
+
+send_async_message_zome_trait = { path = "../../../crates/send_async_message_zome_trait" }
+
+private_event_sourcing_types = { path = "../../../crates/private_event_sourcing_types" }
