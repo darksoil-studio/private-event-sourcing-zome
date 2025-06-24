@@ -1,5 +1,6 @@
 use agent_encrypted_message::{create_encrypted_message, get_my_pending_encrypted_messages};
 pub use encrypted_links_integrity::*;
+use hc_zome_traits::*;
 use hdk::prelude::*;
 use private_event_sourcing_types::ReceiveMessageInput;
 use send_async_message_zome_trait::SendAsyncMessage;
@@ -9,6 +10,7 @@ mod utils;
 
 pub struct EncryptedMessagesInLinks;
 
+#[implement_zome_trait_as_externs]
 impl SendAsyncMessage for EncryptedMessagesInLinks {
     fn send_async_message(
         input: send_async_message_zome_trait::SendAsyncMessageInput,
@@ -36,7 +38,7 @@ pub fn internal_commit_pending_entries() -> ExternResult<()> {
     for (provenance, message) in messages {
         call(
             CallTargetCell::Local,
-            ZomeName::from("private_event_sourcing"),
+            ZomeName::from("example"),
             FunctionName::from("receive_message"),
             None,
             ReceiveMessageInput {

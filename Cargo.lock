@@ -236,6 +236,7 @@ name = "encrypted_links"
 version = "0.0.1"
 dependencies = [
  "encrypted_links_integrity",
+ "hc_zome_traits",
  "hdk",
  "private_event_sourcing_types",
  "send_async_message_zome_trait",

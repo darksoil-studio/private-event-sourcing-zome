@@ -84,7 +84,7 @@ pub fn query_awaiting_deps_private_event_entries() -> ExternResult<Vec<PrivateEv
 }
 
 pub fn query_awaiting_deps_events_sent_to_recipients() -> ExternResult<Vec<EventSentToRecipients>> {
-    let existing_events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let existing_events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
 
     let awaiting_deps = query_awaiting_deps()?;
 
@@ -107,7 +107,7 @@ pub fn query_awaiting_deps_events_sent_to_recipients() -> ExternResult<Vec<Event
 }
 
 pub fn query_awaiting_deps_acknowledgements() -> ExternResult<Vec<Acknowledgement>> {
-    let existing_acknowledgements = query_acknowledgement_entries()?;
+    let existing_acknowledgements = query_acknowledgement_entries(())?;
 
     let awaiting_deps = query_awaiting_deps()?;
 

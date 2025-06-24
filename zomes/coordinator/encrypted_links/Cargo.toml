@@ -17,3 +17,4 @@ encrypted_links_integrity = { path = "../../integrity/encrypted_links" }
 send_async_message_zome_trait = { path = "../../../crates/send_async_message_zome_trait" }
 
 private_event_sourcing_types = { path = "../../../crates/private_event_sourcing_types" }
+hc_zome_traits = { git = "https://github.com/holochain-open-dev/zome-traits", branch = "main" }

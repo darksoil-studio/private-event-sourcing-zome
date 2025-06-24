@@ -112,14 +112,14 @@ export const areConductorCellsDhtsSynced = async (
 	const allDhtOpsSynced = conductorDhtOpsIntegrated.every(ops =>
 		isEqual(ops, conductorDhtOpsIntegrated[0]),
 	);
-	console.log(
-		allDhtOpsSynced,
-		allDhtOpsIntegrated,
-		totalPublishedDhtOpsCount,
-		conductorStates.map(s => s.integration_dump.integrated.length),
-		conductorStates.map(s => s.integration_dump.validation_limbo.length),
-		conductorStates.map(s => s.integration_dump.integration_limbo.length),
-	);
+	// console.log(
+	// 	allDhtOpsSynced,
+	// 	allDhtOpsIntegrated,
+	// 	totalPublishedDhtOpsCount,
+	// 	conductorStates.map(s => s.integration_dump.integrated.length),
+	// 	conductorStates.map(s => s.integration_dump.validation_limbo.length),
+	// 	conductorStates.map(s => s.integration_dump.integration_limbo.length),
+	// );
 
 	return allDhtOpsSynced && allDhtOpsIntegrated;
 };

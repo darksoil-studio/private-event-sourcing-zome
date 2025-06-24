@@ -11,7 +11,7 @@ pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
     _provenance: AgentPubKey,
     events_sent_to_recipients: Vec<EventSentToRecipients>,
 ) -> ExternResult<()> {
-    let current_events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let current_events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
     let current_events = query_private_event_entries(())?;
 
     for event_sent_to_recipients in events_sent_to_recipients {
@@ -55,7 +55,7 @@ pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
 
 pub fn query_events_sent_to_recipients(
 ) -> ExternResult<BTreeMap<EntryHash, BTreeMap<AgentPubKey, Timestamp>>> {
-    let mut events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let mut events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
 
     events_sent_to_recipients.sort_by_key(|e| e.0.payload.timestamp.clone());
 
@@ -78,6 +78,7 @@ pub fn query_events_sent_to_recipients(
     Ok(all_events)
 }
 
+#[hdk_extern]
 pub fn query_events_sent_to_recipients_entries() -> ExternResult<Vec<EventSentToRecipients>> {
     let filter = ChainQueryFilter::new()
         .entry_type(UnitEntryTypes::EventSentToRecipients.try_into()?)

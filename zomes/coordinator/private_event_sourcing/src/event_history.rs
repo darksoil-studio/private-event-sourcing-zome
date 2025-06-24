@@ -27,10 +27,11 @@ pub fn query_event_histories() -> ExternResult<Vec<EventHistory>> {
     Ok(event_histories)
 }
 
+#[hdk_extern]
 pub fn export_event_history() -> ExternResult<EventHistory> {
-    let acknowledgements = query_acknowledgement_entries()?;
+    let acknowledgements = query_acknowledgement_entries(())?;
     let awaiting_deps = query_awaiting_deps()?;
-    let events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
     let events = query_private_event_entries(())?;
 
     Ok(EventHistory {

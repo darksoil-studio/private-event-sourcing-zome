@@ -5,8 +5,7 @@ use private_event_sourcing_integrity::*;
 
 use crate::{
     query_event_histories, query_private_event_entries, query_private_event_entry,
-    send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventContent,
-    PrivateEventSourcingRemoteSignal,
+    send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
 pub fn create_acknowledgements<T: PrivateEvent>(
@@ -22,7 +21,7 @@ pub fn create_acknowledgements<T: PrivateEvent>(
 pub fn query_acknowledgement_for(
     event_hash: &EntryHashB64,
 ) -> ExternResult<Option<Acknowledgement>> {
-    let acknowledgements = query_acknowledgement_entries()?;
+    let acknowledgements = query_acknowledgement_entries(())?;
     Ok(acknowledgements
         .iter()
         .find(|a| {
@@ -46,7 +45,10 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
         };
 
         send_remote_signal(
-            PrivateEventSourcingRemoteSignal::SendMessage(message.clone()),
+            SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                message.clone(),
+            ))
+            .map_err(|err| wasm_error!(err))?,
             vec![recipient.clone()],
         )?;
 
@@ -92,7 +94,10 @@ pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> Exte
     };
 
     send_remote_signal(
-        PrivateEventSourcingRemoteSignal::SendMessage(message.clone()),
+        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+            message.clone(),
+        ))
+        .map_err(|err| wasm_error!(err))?,
         recipients.clone().into_iter().collect(),
     )?;
 
@@ -102,10 +107,10 @@ pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> Exte
 }
 
 pub fn receive_acknowledgements<T: PrivateEvent>(
-    provenance: AgentPubKey,
+    _provenance: AgentPubKey,
     acknowledgements: Vec<Acknowledgement>,
 ) -> ExternResult<()> {
-    let current_acknowledgements = query_acknowledgement_entries()?;
+    let current_acknowledgements = query_acknowledgement_entries(())?;
     let current_events = query_private_event_entries(())?;
 
     for acknowledgement in acknowledgements {
@@ -140,7 +145,7 @@ pub fn receive_acknowledgements<T: PrivateEvent>(
 
 pub fn query_acknowledgements_by_agents() -> ExternResult<BTreeMap<AgentPubKey, BTreeSet<EntryHash>>>
 {
-    let acknowledgements = query_acknowledgement_entries()?;
+    let acknowledgements = query_acknowledgement_entries(())?;
 
     let mut all_acknowledgements: BTreeMap<AgentPubKey, BTreeSet<EntryHash>> = BTreeMap::new();
 
@@ -154,6 +159,7 @@ pub fn query_acknowledgements_by_agents() -> ExternResult<BTreeMap<AgentPubKey, 
     Ok(all_acknowledgements)
 }
 
+#[hdk_extern]
 pub fn query_acknowledgement_entries() -> ExternResult<Vec<Acknowledgement>> {
     let filter = ChainQueryFilter::new()
         .entry_type(UnitEntryTypes::Acknowledgement.try_into()?)

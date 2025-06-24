@@ -22,8 +22,8 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
     let entries = query_private_event_entries(())?;
     let events_sent_to_recipients = query_events_sent_to_recipients()?;
     let acknowledgements = query_acknowledgements_by_agents()?;
-    let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries()?;
-    let acknowledgements_entries = query_acknowledgement_entries()?;
+    let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
+    let acknowledgements_entries = query_acknowledgement_entries(())?;
 
     let my_linked_devices = query_my_linked_devices()?;
 
@@ -147,8 +147,8 @@ pub fn synchronize_with_linked_device(linked_device: AgentPubKey) -> ExternResul
         .into_iter()
         .map(|(_, e)| e)
         .collect();
-    let events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
-    let acknowledgements = query_acknowledgement_entries()?;
+    let events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
+    let acknowledgements = query_acknowledgement_entries(())?;
 
     let message = Message {
         private_events,
