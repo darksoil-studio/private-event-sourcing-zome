@@ -4,22 +4,26 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    acknowledgements::query_acknowledgement_entries, internal_create_private_event,
-    query_private_event_entries, utils::create_relaxed, validate_private_event_entry, PrivateEvent,
+    acknowledgements::query_acknowledgement_entries,
+    events_sent_to_recipients::{
+        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
+    },
+    internal_create_private_event, query_private_event_entries,
+    utils::create_relaxed,
+    validate_private_event_entry, PrivateEventContent,
 };
 
-pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<()> {
-    let mut entries: Vec<(EntryHashB64, PrivateEventEntry)> =
-        query_awaiting_deps_entries()?.into_iter().collect();
+pub fn attempt_commit_awaiting_deps_entries<T: PrivateEventContent>() -> ExternResult<()> {
+    let mut entries: Vec<PrivateEventEntry> = query_awaiting_deps_private_event_entries()?;
 
-    entries.sort_by(|e1, e2| e1.1 .0.event.timestamp.cmp(&e2.1 .0.event.timestamp));
+    entries.sort_by(|e1, e2| e1.0.event.timestamp.cmp(&e2.0.event.timestamp));
 
     let private_event_entries = query_private_event_entries(())?;
-    for (_action_hash, private_event_entry) in entries {
+    for private_event_entry in entries {
         let entry_hash = hash_entry(&private_event_entry)?;
 
         if !private_event_entries.contains_key(&entry_hash.clone().into()) {
-            let valid = validate_private_event_entry::<T>(entry_hash, &private_event_entry)?;
+            let valid = validate_private_event_entry::<T>(&private_event_entry)?;
 
             match valid {
                 ValidateCallbackResult::Valid => {
@@ -34,6 +38,18 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
     }
 
     let private_event_entries = query_private_event_entries(())?;
+
+    let events_sent_to_recipients = query_awaiting_deps_events_sent_to_recipients()?;
+    for events_sent_to_recipients in events_sent_to_recipients {
+        if private_event_entries
+            .contains_key(&EntryHashB64::from(private_event_entries.contains_key(
+                &events_sent_to_recipients.0.payload.content.event_hash,
+            )))
+        {
+            create_relaxed(EntryTypes::EventSentToRecipients(events_sent_to_recipients))?;
+        }
+    }
+
     let acknowledgements = query_awaiting_deps_acknowledgements()?;
 
     for acknowledgement in acknowledgements {
@@ -47,72 +63,88 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
     Ok(())
 }
 
-pub fn query_awaiting_deps_entries() -> ExternResult<BTreeMap<EntryHashB64, PrivateEventEntry>> {
+pub fn query_awaiting_deps_private_event_entries() -> ExternResult<Vec<PrivateEventEntry>> {
     let existing_private_event_entries = query_private_event_entries(())?;
 
-    let filter = ChainQueryFilter::new()
-        .entry_type(UnitEntryTypes::AwaitingDependencies.try_into()?)
-        .include_entries(true)
-        .action_type(ActionType::Create);
-    let create_records = query(filter)?;
+    let awaiting_deps = query_awaiting_deps()?;
 
-    let mut entries: BTreeMap<EntryHashB64, PrivateEventEntry> = BTreeMap::new();
-
-    for record in create_records {
-        let Ok(Some(awaiting_dependencies)) = record
-            .entry()
-            .to_app_option::<AwaitingDependencies>()
-            .map_err(|err| wasm_error!(err))
-        else {
-            continue;
-        };
-        let AwaitingDependencies::Event { event, .. } = awaiting_dependencies else {
-            continue;
-        };
-        let Some(entry_hash) = record.action().entry_hash() else {
-            continue;
-        };
-        if existing_private_event_entries.contains_key(&EntryHashB64::from(entry_hash.clone())) {
-            continue;
-        }
-        entries.insert(entry_hash.clone().into(), event);
-    }
+    let entries: Vec<PrivateEventEntry> = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| match awaiting_deps {
+            AwaitingDependencies::Event { event, .. } => Some(event),
+            _ => None,
+        })
+        .filter(|event| {
+            let Ok(hash) = hash_entry(event) else {
+                return false;
+            };
+            !existing_private_event_entries.contains_key(hash)
+        })
+        .collect();
 
     Ok(entries)
+}
+
+pub fn query_awaiting_deps_events_sent_to_recipients() -> ExternResult<Vec<EventSentToRecipients>> {
+    let existing_events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+
+    let awaiting_deps = query_awaiting_deps()?;
+
+    let events_sent_to_recipients: Vec<EventSentToRecipients> = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| match awaiting_deps {
+            AwaitingDependencies::EventsSentToRecipients {
+                events_sent_to_recipients,
+            } => Some(events_sent_to_recipients),
+            _ => None,
+        })
+        .filter(|events_sent_to_recipients| {
+            !existing_events_sent_to_recipients
+                .iter()
+                .any(|e| e.eq(events_sent_to_recipients))
+        })
+        .collect();
+
+    Ok(events_sent_to_recipients)
 }
 
 pub fn query_awaiting_deps_acknowledgements() -> ExternResult<Vec<Acknowledgement>> {
     let existing_acknowledgements = query_acknowledgement_entries()?;
 
+    let awaiting_deps = query_awaiting_deps()?;
+
+    let acknowledgements: Vec<Acknowledgement> = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| match awaiting_deps {
+            AwaitingDependencies::Acknowledgement { acknowledgement } => Some(acknowledgement),
+            _ => None,
+        })
+        .filter(|acknowledgement| {
+            !existing_acknowledgements
+                .iter()
+                .any(|a| a.eq(acknowledgement))
+        })
+        .collect();
+
+    Ok(acknowledgements)
+}
+
+pub fn query_awaiting_deps() -> ExternResult<Vec<AwaitingDependencies>> {
     let filter = ChainQueryFilter::new()
         .entry_type(UnitEntryTypes::AwaitingDependencies.try_into()?)
         .include_entries(true)
         .action_type(ActionType::Create);
     let create_records = query(filter)?;
 
-    let mut acknowledgements: Vec<Acknowledgement> = Vec::new();
+    let awaiting_dependencies = create_records
+        .into_iter()
+        .map(|record| {
+            record
+                .entry()
+                .to_app_option::<AwaitingDependencies>()
+                .map_err(|err| wasm_error!(err))
+        })
+        .collect::<ExternResult<Vec<AwaitingDependencies>>>()?;
 
-    for record in create_records {
-        let Ok(Some(awaiting_dependencies)) = record
-            .entry()
-            .to_app_option::<AwaitingDependencies>()
-            .map_err(|err| wasm_error!(err))
-        else {
-            continue;
-        };
-        let AwaitingDependencies::Acknowledgement { acknowledgement } = awaiting_dependencies
-        else {
-            continue;
-        };
-        if existing_acknowledgements
-            .iter()
-            .find(|a| a.eq(&&acknowledgement))
-            .is_some()
-        {
-            continue;
-        }
-        acknowledgements.push(acknowledgement);
-    }
-
-    Ok(acknowledgements)
+    Ok(awaiting_dependencies)
 }

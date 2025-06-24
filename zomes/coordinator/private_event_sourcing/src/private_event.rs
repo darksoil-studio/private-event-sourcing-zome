@@ -1,11 +1,13 @@
 use hdk::prelude::*;
-use private_event_sourcing_integrity::*;
+use private_event_sourcing_integrity::{PrivateEventContent, *};
 use std::collections::BTreeMap;
 
 use crate::{
-    acknowledgements::create_acknowledgement, linked_devices::query_my_linked_devices,
-    query_acknowledgement_for, query_event_histories, send_acknowledgement_for_event_to_recipient,
-    utils::create_relaxed, Signal,
+    linked_devices::query_my_linked_devices,
+    query_event_histories, send_acknowledgement_for_event_to_recipient,
+    signed_entry::{build_signed_entry, validate_signed_entry},
+    utils::create_relaxed,
+    Signal,
 };
 
 pub trait EventType {
@@ -30,66 +32,21 @@ pub trait PrivateEvent:
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<BTreeSet<AgentPubKey>>;
-
-    // /// Code to run after an event has been committed
-    // fn post_commit(
-    //     &self,
-    //     entry_hash: EntryHash,
-    //     author: AgentPubKey,
-    //     timestamp: Timestamp,
-    // ) -> ExternResult<()> {
-    //     Ok(())
-    // }
-
-    /// Send the event to this specific recipients
-    fn send_event(
-        recipients: BTreeSet<AgentPubKey>,
-        private_event_entry: PrivateEventEntry,
-    ) -> ExternResult<()>;
-
-    /// Send the event to this specific recipients
-    fn send_acknowledgement(
-        recipients: BTreeSet<AgentPubKey>,
-        acknowledgement: Acknowledgement,
-    ) -> ExternResult<()>;
-}
-
-#[hdk_entry_helper]
-pub struct SignedEntry(pub SignedContent<SerializedBytes>);
-
-fn build_private_event_entry<T: PrivateEvent>(
-    private_event: T,
-    timestamp: Timestamp,
-) -> ExternResult<PrivateEventEntry> {
-    let event_type = private_event.event_type();
-    let bytes: SerializedBytes = private_event
-        .try_into()
-        .map_err(|_err| wasm_error!("Failed to serialize private event."))?;
-
-    let signed: SignedContent<SerializedBytes> = SignedContent {
-        content: bytes,
-        timestamp,
-        event_type,
-    };
-    let signed_hash = hash_entry(&SignedEntry(signed.clone()))?;
-    let my_pub_key = agent_info()?.agent_initial_pubkey;
-    let signature = sign(my_pub_key.clone(), &signed_hash)?;
-    Ok(PrivateEventEntry(SignedEvent {
-        author: my_pub_key,
-        signature,
-        event: signed,
-    }))
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
-    let timestamp = sys_time()?;
-    let entry = build_private_event_entry(private_event.clone(), timestamp)?;
+    let signed = build_signed_entry(PrivateEventContent {
+        event_type: private_event.event_type(),
+        event: private_event,
+    })?;
+    let entry = PrivateEventEntry(signed);
+
     let entry_hash = hash_entry(&entry)?;
     let validation_outcome = private_event.validate(
         entry_hash,
-        agent_info()?.agent_initial_pubkey,
-        timestamp.clone(),
-    )?;
+        signed.author.clone(),
+        signed.payload.timestamp.clone(),
+    );
 
     match validation_outcome {
         ValidateCallbackResult::Valid => {}
@@ -106,31 +63,18 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
 }
 
 pub fn validate_private_event_entry<T: PrivateEvent>(
-    entry_hash: EntryHash,
     private_event_entry: &PrivateEventEntry,
 ) -> ExternResult<ValidateCallbackResult> {
-    let signed_hash = hash_entry(&SignedEntry(private_event_entry.0.event.clone()))?;
-    let valid = verify_signature(
-        private_event_entry.0.author.clone(),
-        private_event_entry.0.signature.clone(),
-        &signed_hash,
-    )?;
+    let signed_valid = validate_signed_entry(private_event_entry.0)?;
 
-    if !valid {
+    if !signed_valid {
         return Ok(ValidateCallbackResult::Invalid(String::from(
             "Invalid private event entry: invalid signature.",
         )));
     }
-    let expected_entry_hash = hash_entry(private_event_entry)?;
-
-    if expected_entry_hash.ne(&entry_hash) {
-        return Ok(ValidateCallbackResult::Invalid(String::from(
-            "Invalid private event entry: invalid entry hash.",
-        )));
-    }
 
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize the private event."))?;
+        .map_err(|_err| wasm_error!("Failed to deserialize the private event."))?;
 
     if private_event
         .event_type()
@@ -142,6 +86,8 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
             private_event.event_type()
         )));
     }
+
+    let entry_hash = hash_entry(&private_event_entry)?;
 
     private_event.validate(
         entry_hash,
@@ -172,8 +118,7 @@ pub fn receive_private_events<T: PrivateEvent>(
             continue;
         }
 
-        let outcome =
-            validate_private_event_entry::<T>(entry_hash.clone().into(), &private_event_entry);
+        let outcome = validate_private_event_entry::<T>(&private_event_entry);
 
         match outcome {
             Ok(ValidateCallbackResult::Valid) => {

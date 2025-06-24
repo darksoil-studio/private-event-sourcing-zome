@@ -8,6 +8,7 @@ hdk = { workspace = true }
 
 serde = { workspace = true }
 
+send_async_message_zome_trait = { path = "../../../crates/send_async_message_zome_trait" }
 private_event_proc_macro = { path = "../../../crates/private_event_proc_macro" }
 private_event_sourcing_integrity = { path = "../../integrity/private_event_sourcing" }
 linked_devices_types = { git = "https://github.com/darksoil-studio/linked-devices-zome", branch = "main-0.5" }

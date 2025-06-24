@@ -1,5 +1,7 @@
 use hdi::prelude::*;
 
+pub use private_event_sourcing_types::*;
+
 mod private_event;
 pub use private_event::*;
 
@@ -29,7 +31,7 @@ pub enum EntryTypes {
     #[entry_type(visibility = "private")]
     Acknowledgement(Acknowledgement),
     #[entry_type(visibility = "private")]
-    EventsSentToRecipients(EventsSentToRecipients),
+    EventSentToRecipients(EventSentToRecipients),
 }
 
 /// Validation you perform during the genesis process. Nobody else on the network performs it, only you.
@@ -93,7 +95,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         private_event,
                     )
                 }
-                EntryTypes::EventsSentToRecipients(events_sent_to_recipients) => {
+                EntryTypes::EventSentToRecipients(events_sent_to_recipients) => {
                     validate_create_events_sent_to_recipients(
                         EntryCreationAction::Create(action),
                         events_sent_to_recipients,
@@ -121,7 +123,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         private_event,
                     )
                 }
-                EntryTypes::EventsSentToRecipients(events_sent_to_recipients) => {
+                EntryTypes::EventSentToRecipients(events_sent_to_recipients) => {
                     validate_create_events_sent_to_recipients(
                         EntryCreationAction::Update(action),
                         events_sent_to_recipients,
@@ -149,7 +151,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                 EntryTypes::Acknowledgement(acknowledgement) => {
                     validate_update_acknowledgement(action, acknowledgement)
                 }
-                EntryTypes::EventsSentToRecipients(events_sent_to_recipients) => {
+                EntryTypes::EventSentToRecipients(events_sent_to_recipients) => {
                     validate_update_events_sent_to_recipients(action, events_sent_to_recipients)
                 }
                 EntryTypes::EventHistory(_event_history) => validate_update_event_history(action),
@@ -203,7 +205,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                 EntryTypes::AwaitingDependencies(_) => {
                     validate_delete_awaiting_dependencies(action)
                 }
-                EntryTypes::EventsSentToRecipients(_) => {
+                EntryTypes::EventSentToRecipients(_) => {
                     validate_delete_events_sent_to_recipients(action)
                 }
                 EntryTypes::Acknowledgement(_) => validate_delete_acknowledgement(action),
@@ -241,7 +243,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         private_event,
                     )
                 }
-                EntryTypes::EventsSentToRecipients(events_sent_to_recipients) => {
+                EntryTypes::EventSentToRecipients(events_sent_to_recipients) => {
                     validate_create_events_sent_to_recipients(
                         EntryCreationAction::Create(action),
                         events_sent_to_recipients,
@@ -279,7 +281,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     };
                     validate_update_awaiting_dependencies(action, private_event)
                 }
-                EntryTypes::EventsSentToRecipients(events_sent_to_recipients) => {
+                EntryTypes::EventSentToRecipients(events_sent_to_recipients) => {
                     let result = validate_create_events_sent_to_recipients(
                         EntryCreationAction::Update(action.clone()),
                         events_sent_to_recipients.clone(),
@@ -362,7 +364,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         validate_delete_awaiting_dependencies(action)
                     }
                     EntryTypes::Acknowledgement(_) => validate_delete_acknowledgement(action),
-                    EntryTypes::EventsSentToRecipients(_) => {
+                    EntryTypes::EventSentToRecipients(_) => {
                         validate_delete_events_sent_to_recipients(action)
                     }
                     EntryTypes::EventHistory(_) => validate_delete_event_history(action),

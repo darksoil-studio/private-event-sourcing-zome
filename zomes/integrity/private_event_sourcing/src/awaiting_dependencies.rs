@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use private_event_sourcing_types::EventSentToRecipients;
 
 use crate::{Acknowledgement, PrivateEventEntry};
 
@@ -11,6 +12,9 @@ pub enum AwaitingDependencies {
     },
     Acknowledgement {
         acknowledgement: Acknowledgement,
+    },
+    EventsSentToRecipients {
+        events_sent_to_recipients: EventSentToRecipients,
     },
 }
 

@@ -1,7 +1,8 @@
+use hdk::prelude::*;
 use std::collections::BTreeMap;
+pub use strum::IntoStaticStr;
 
 pub use acknowledgements::*;
-use hdk::prelude::*;
 pub use private_event_sourcing_integrity::*;
 
 mod awaiting_dependencies;
@@ -19,11 +20,14 @@ mod send_events;
 pub use send_events::send_events;
 mod events_sent_to_recipients;
 
-pub use strum::IntoStaticStr;
+mod signed_entry;
+
+mod async_message;
+pub use async_message::*;
 
 pub use private_event_proc_macro::*;
 
-pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
+pub fn scheduled_tasks<T: PrivateEventContent>() -> ExternResult<()> {
     send_events::<T>()?;
     Ok(())
 }
@@ -78,20 +82,16 @@ pub enum Signal {
 
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 pub enum PrivateEventSourcingRemoteSignal {
-    SendPrivateEvents(BTreeMap<EntryHashB64, PrivateEventEntry>),
-    SendAcknowledgements(Vec<Acknowledgement>),
+    SendMessage(Message),
 }
 
-pub fn recv_private_events_remote_signal<T: PrivateEvent>(
+pub fn recv_private_events_remote_signal<T: PrivateEventContent>(
     signal: PrivateEventSourcingRemoteSignal,
 ) -> ExternResult<()> {
     let provenance = call_info()?.provenance;
     match signal {
-        PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) => {
-            receive_private_events::<T>(provenance, private_event_entries)
-        }
-        PrivateEventSourcingRemoteSignal::SendAcknowledgements(acknowledgements) => {
-            receive_acknowledgements::<T>(acknowledgements)
+        PrivateEventSourcingRemoteSignal::SendMessage(message) => {
+            receive_message::<T>(provenance, message)
         }
     }
 }

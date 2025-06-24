@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use hdi::prelude::*;
 
-use crate::{Acknowledgement, EventsSentToRecipients, PrivateEventEntry};
+use crate::{Acknowledgement, EventSentToRecipients, PrivateEventEntry};
 
 #[hdk_entry_helper]
 #[derive(Clone)]
 pub struct EventHistory {
     pub events: BTreeMap<EntryHashB64, PrivateEventEntry>,
-    pub events_sent_to_recipients: Vec<EventsSentToRecipients>,
+    pub events_sent_to_recipients: Vec<EventSentToRecipients>,
     pub acknowledgements: Vec<Acknowledgement>,
 }
 

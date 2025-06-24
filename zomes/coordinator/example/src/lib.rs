@@ -12,7 +12,7 @@ pub enum Event {
     },
 }
 
-impl PrivateEvent for Event {
+impl PrivateEventContent for Event {
     fn validate(
         &self,
         _entry_hash: EntryHash,
@@ -37,19 +37,6 @@ impl PrivateEvent for Event {
             }
             _ => Ok(BTreeSet::new()),
         }
-    }
-
-    fn send_event(
-        recipients: BTreeSet<AgentPubKey>,
-        private_event_entry: PrivateEventEntry,
-    ) -> ExternResult<()> {
-        Ok(())
-    }
-    fn send_acknowledgement(
-        recipients: BTreeSet<AgentPubKey>,
-        acknowledgement: Acknowledgement,
-    ) -> ExternResult<()> {
-        Ok(())
     }
 }
 

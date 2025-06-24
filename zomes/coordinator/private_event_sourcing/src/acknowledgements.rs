@@ -4,12 +4,14 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    query_event_histories, query_private_event, query_private_event_entries,
-    query_private_event_entry, utils::create_relaxed, PrivateEvent,
-    PrivateEventSourcingRemoteSignal,
+    query_event_histories, query_private_event_entries, query_private_event_entry,
+    send_async_message,
+    signed_entry::{build_signed_entry, validate_signed_entry},
+    utils::create_relaxed,
+    PrivateEventContent, PrivateEventSourcingRemoteSignal,
 };
 
-pub fn create_acknowledgements<T: PrivateEvent>(
+pub fn create_acknowledgements<T: PrivateEventContent>(
     events_hashes: BTreeSet<EntryHashB64>,
 ) -> ExternResult<()> {
     for event_hash in events_hashes {
@@ -33,7 +35,7 @@ pub fn query_acknowledgement_for(
         .cloned())
 }
 
-pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
+pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEventContent>(
     event_hash: &EntryHashB64,
     recipient: &AgentPubKey,
 ) -> ExternResult<()> {
@@ -43,7 +45,7 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
             vec![recipient.clone()],
         )?;
 
-        T::send_acknowledgement(
+        send_async_message(
             vec![recipient.clone()].into_iter().collect(),
             acknowledgement,
         )?;
@@ -54,7 +56,9 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
     Ok(())
 }
 
-pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> ExternResult<()> {
+pub fn create_acknowledgement<T: PrivateEventContent>(
+    event_hash: EntryHashB64,
+) -> ExternResult<()> {
     let Some(private_event_entry) = query_private_event_entry(event_hash.clone().into())? else {
         return Err(wasm_error!("Could not find private event"));
     };
@@ -64,22 +68,16 @@ pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> Exte
     } else {
         let acknowledgement_content = AcknowledgementContent {
             private_event_hash: event_hash.clone().into(),
-            timestamp: sys_time()?,
         };
-        let signature = sign(agent_info()?.agent_initial_pubkey, &acknowledgement_content)?;
-
-        let acknowledgement = Acknowledgement {
-            author: agent_info()?.agent_initial_pubkey,
-            signature,
-            content: acknowledgement_content,
-        };
+        let signed_entry = build_signed_entry(acknowledgement_content)?;
+        let acknowledgement = Acknowledgement(signed_entry);
 
         create_relaxed(EntryTypes::Acknowledgement(acknowledgement.clone()))?;
         acknowledgement
     };
 
     let private_event = T::try_from(private_event_entry.0.event.content.clone())
-        .map_err(|err| wasm_error!("Failed to deserialize the private event."))?;
+        .map_err(|_err| wasm_error!("Failed to deserialize the private event."))?;
 
     let recipients = private_event.recipients(
         event_hash.into(),
@@ -87,17 +85,24 @@ pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> Exte
         private_event_entry.0.event.timestamp,
     )?;
 
+    let message = Message {
+        private_events: vec![],
+        acknowledgments: vec![acknowledgement],
+        events_sent_to_recipients: vec![],
+    };
+
     send_remote_signal(
-        PrivateEventSourcingRemoteSignal::SendAcknowledgements(vec![acknowledgement.clone()]),
+        PrivateEventSourcingRemoteSignal::SendMessage(message.clone()),
         recipients.clone().into_iter().collect(),
     )?;
 
-    T::send_acknowledgement(recipients, acknowledgement)?;
+    send_async_message(recipients, message)?;
 
     Ok(())
 }
 
-pub fn receive_acknowledgements<T: PrivateEvent>(
+pub fn receive_acknowledgements<T: PrivateEventContent>(
+    provenance: AgentPubKey,
     acknowledgements: Vec<Acknowledgement>,
 ) -> ExternResult<()> {
     let current_acknowledgements = query_acknowledgement_entries()?;
@@ -113,11 +118,7 @@ pub fn receive_acknowledgements<T: PrivateEvent>(
             continue;
         }
 
-        let valid = verify_signature(
-            acknowledgement.author.clone(),
-            acknowledgement.signature.clone(),
-            &acknowledgement.content,
-        )?;
+        let valid = validate_signed_entry(acknowledgement.0)?;
 
         if !valid {
             return Err(wasm_error!("Invalid acknowledgement: invalid signature."));
@@ -140,23 +141,14 @@ pub fn receive_acknowledgements<T: PrivateEvent>(
 pub fn query_acknowledgements_by_agents() -> ExternResult<BTreeMap<AgentPubKey, BTreeSet<EntryHash>>>
 {
     let acknowledgements = query_acknowledgement_entries()?;
-    let events_sent_to_recipients = acknowledgements
-        .into_iter()
-        .map(|acknowledgement| {
-            Ok((
-                acknowledgement.author,
-                acknowledgement.content.private_event_hash,
-            ))
-        })
-        .collect::<ExternResult<Vec<(AgentPubKey, EntryHash)>>>()?;
 
     let mut all_acknowledgements: BTreeMap<AgentPubKey, BTreeSet<EntryHash>> = BTreeMap::new();
 
-    for (agent, received_event) in events_sent_to_recipients {
+    for acknowledgement in acknowledgements {
         all_acknowledgements
-            .entry(agent)
+            .entry(acknowledgement.0.author)
             .or_insert(BTreeSet::new())
-            .insert(received_event);
+            .insert(acknowledgement.0.payload.content.private_event_hash);
     }
 
     Ok(all_acknowledgements)

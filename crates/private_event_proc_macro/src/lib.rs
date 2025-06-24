@@ -40,8 +40,8 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn receive_private_events(input: ReceivePrivateEventsInput) -> ExternResult<()> {
-            private_event_sourcing::receive_private_events::<#ident>(input.provenance, input.private_events)
+        pub fn receive_message(input: private_event_sourcing::ReceiveMessageInput) -> ExternResult<()> {
+            private_event_sourcing::receive_private_events::<#ident>(input.provenance, input.message)
         }
 
         #[hdk_extern]
