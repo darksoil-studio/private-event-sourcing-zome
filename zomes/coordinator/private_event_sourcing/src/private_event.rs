@@ -1,13 +1,11 @@
 use hdk::prelude::*;
 use private_event_sourcing_integrity::{PrivateEventContent, *};
+use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
 use crate::{
-    linked_devices::query_my_linked_devices,
-    query_event_histories, send_acknowledgement_for_event_to_recipient,
-    signed_entry::{build_signed_entry, validate_signed_entry},
-    utils::create_relaxed,
-    Signal,
+    linked_devices::query_my_linked_devices, query_event_histories,
+    send_acknowledgement_for_event_to_recipient, utils::create_relaxed, Signal,
 };
 
 pub trait EventType {
@@ -15,7 +13,13 @@ pub trait EventType {
 }
 
 pub trait PrivateEvent:
-    EventType + Clone + TryFrom<SerializedBytes> + TryInto<SerializedBytes>
+    EventType
+    + Clone
+    + DeserializeOwned
+    + Serialize
+    + std::fmt::Debug
+    + TryFrom<SerializedBytes>
+    + TryInto<SerializedBytes>
 {
     /// Whether the given entry is to be accepted in to our source chain
     fn validate(
@@ -35,18 +39,20 @@ pub trait PrivateEvent:
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
-    let signed = build_signed_entry(PrivateEventContent {
+    let event_bytes: SerializedBytes = private_event
+        .clone()
+        .try_into()
+        .map_err(|_err| wasm_error!("Failed to serialize."))?;
+    let signed = SignedEntry::build(PrivateEventContent {
         event_type: private_event.event_type(),
-        event: private_event,
+        event: event_bytes,
     })?;
+    let author = signed.author.clone();
+    let timestamp = signed.payload.timestamp.clone();
     let entry = PrivateEventEntry(signed);
 
     let entry_hash = hash_entry(&entry)?;
-    let validation_outcome = private_event.validate(
-        entry_hash,
-        signed.author.clone(),
-        signed.payload.timestamp.clone(),
-    );
+    let validation_outcome = private_event.validate(entry_hash, author, timestamp)?;
 
     match validation_outcome {
         ValidateCallbackResult::Valid => {}
@@ -65,7 +71,7 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
 pub fn validate_private_event_entry<T: PrivateEvent>(
     private_event_entry: &PrivateEventEntry,
 ) -> ExternResult<ValidateCallbackResult> {
-    let signed_valid = validate_signed_entry(private_event_entry.0)?;
+    let signed_valid = private_event_entry.0.verify()?;
 
     if !signed_valid {
         return Ok(ValidateCallbackResult::Invalid(String::from(
@@ -73,45 +79,43 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
         )));
     }
 
-    let private_event = T::try_from(private_event_entry.0.event.content.clone())
+    let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
         .map_err(|_err| wasm_error!("Failed to deserialize the private event."))?;
 
     if private_event
         .event_type()
-        .ne(&private_event_entry.0.event.event_type)
+        .ne(&private_event_entry.0.payload.content.event_type)
     {
         return Ok(ValidateCallbackResult::Invalid(format!(
             "Invalid event type: expected '{}', but got '{}'.",
-            private_event_entry.0.event.event_type,
+            private_event_entry.0.payload.content.event_type,
             private_event.event_type()
         )));
     }
 
-    let entry_hash = hash_entry(&private_event_entry)?;
+    let entry_hash = hash_entry(private_event_entry)?;
 
     private_event.validate(
         entry_hash,
         private_event_entry.0.author.clone(),
-        private_event_entry.0.event.timestamp,
+        private_event_entry.0.payload.timestamp,
     )
 }
 
 pub fn receive_private_events<T: PrivateEvent>(
     provenance: AgentPubKey,
-    private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
+    private_event_entries: Vec<PrivateEventEntry>,
 ) -> ExternResult<()> {
     debug!("[receive_private_events/start]");
     // check_is_linked_device(provenance)?;
 
     let my_private_event_entries = query_private_event_entries(())?;
 
-    let mut ordered_their_private_event_entries: Vec<(EntryHashB64, PrivateEventEntry)> =
-        private_event_entries.into_iter().collect();
+    let mut ordered_their_private_event_entries: Vec<PrivateEventEntry> = private_event_entries;
+    ordered_their_private_event_entries.sort_by_key(|e| e.0.payload.timestamp);
 
-    ordered_their_private_event_entries
-        .sort_by(|e1, e2| e1.1 .0.event.timestamp.cmp(&e2.1 .0.event.timestamp));
-
-    for (entry_hash, private_event_entry) in ordered_their_private_event_entries {
+    for private_event_entry in ordered_their_private_event_entries {
+        let entry_hash = EntryHashB64::from(hash_entry(&private_event_entry)?);
         if my_private_event_entries.contains_key(&entry_hash) {
             // We already have this message committed
             send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
@@ -189,7 +193,7 @@ pub fn query_private_event_entries_by_type(
 
     let entries_of_this_type = all_entries
         .into_iter()
-        .filter(|(_hash, entry)| entry.0.event.event_type.eq(event_type))
+        .filter(|(_hash, entry)| entry.0.payload.content.event_type.eq(event_type))
         .collect();
     Ok(entries_of_this_type)
 }
@@ -271,16 +275,18 @@ pub fn query_private_event_entry(event_hash: EntryHash) -> ExternResult<Option<P
 
 pub fn private_event_entry_to_signed_event<T: PrivateEvent>(
     private_event_entry: PrivateEventEntry,
-) -> ExternResult<SignedEvent<T>> {
-    let private_event = T::try_from(private_event_entry.0.event.content)
-        .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    Ok(SignedEvent {
+) -> ExternResult<SignedEntry<PrivateEventContent<T>>> {
+    let private_event = T::try_from(private_event_entry.0.payload.content.event)
+        .map_err(|_err| wasm_error!("Failed to deserialize private event."))?;
+    Ok(SignedEntry {
         author: private_event_entry.0.author,
         signature: private_event_entry.0.signature,
-        event: SignedContent {
-            event_type: private_event_entry.0.event.event_type,
-            timestamp: private_event_entry.0.event.timestamp,
-            content: private_event,
+        payload: SignedContent {
+            timestamp: private_event_entry.0.payload.timestamp,
+            content: PrivateEventContent {
+                event_type: private_event_entry.0.payload.content.event_type,
+                event: private_event,
+            },
         },
     })
 }

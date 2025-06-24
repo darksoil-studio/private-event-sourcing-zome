@@ -12,7 +12,7 @@ pub enum Event {
     },
 }
 
-impl PrivateEventContent for Event {
+impl PrivateEvent for Event {
     fn validate(
         &self,
         _entry_hash: EntryHash,
@@ -58,7 +58,7 @@ pub fn query_friends() -> ExternResult<BTreeSet<AgentPubKey>> {
     let mut friends: BTreeSet<AgentPubKey> = BTreeSet::new();
 
     for (_hash, private_event) in private_events {
-        let Event::NewFriend { friend } = private_event.event.content else {
+        let Event::NewFriend { friend } = private_event.payload.content.event else {
             continue;
         };
         friends.insert(friend);

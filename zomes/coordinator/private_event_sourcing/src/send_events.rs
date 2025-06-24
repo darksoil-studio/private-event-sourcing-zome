@@ -1,16 +1,20 @@
 use hdk::prelude::*;
 use private_event_sourcing_integrity::{
-    EventSentToRecipients, EventSentToRecipientsContent, Message,
+    EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message, SignedEntry,
 };
 
 use crate::{
     acknowledgements::query_acknowledgements_by_agents,
-    events_sent_to_recipients::query_events_sent_to_recipients, query_my_linked_devices,
-    query_private_event_entries, send_async_message, signed_entry::build_signed_entry,
-    utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
+    events_sent_to_recipients::{
+        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
+    },
+    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
+    send_async_message,
+    utils::create_relaxed,
+    PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
-const INTERVAL_RESEND_MS: usize = 1000 * 60 * 60 * 24 * 10; // 10 days
+const INTERVAL_RESEND_MS: i64 = 1000 * 60 * 60 * 24 * 1000; // 1000 days
 
 pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
     debug!("[send_events] Sending events to linked devices and recipients if necessary.");
@@ -18,6 +22,8 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
     let entries = query_private_event_entries(())?;
     let events_sent_to_recipients = query_events_sent_to_recipients()?;
     let acknowledgements = query_acknowledgements_by_agents()?;
+    let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries()?;
+    let acknowledgements_entries = query_acknowledgement_entries()?;
 
     let my_linked_devices = query_my_linked_devices()?;
 
@@ -26,14 +32,14 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
     let my_pub_key = agent_info()?.agent_initial_pubkey;
 
     for (event_hash, private_event_entry) in entries {
-        let private_event = T::try_from(private_event_entry.0.event.content.clone())
+        let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
             .map_err(|_err| wasm_error!("Failed to deserialize private event"))?;
 
         // For each event, get the recipients
         let recipients_result = private_event.recipients(
             event_hash.clone().into(),
             private_event_entry.0.author.clone(),
-            private_event_entry.0.event.timestamp,
+            private_event_entry.0.payload.timestamp,
         );
         let Ok(mut recipients) = recipients_result else {
             warn!("Error calling PrivateEvent::recipients()");
@@ -78,16 +84,44 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
             );
 
             let content = EventSentToRecipientsContent {
-                event_hash: event_hash.clone(),
+                event_hash: event_hash.clone().into(),
                 recipients: recipients_to_send.clone(),
             };
-            let signed = build_signed_entry(content)?;
+            let signed = SignedEntry::build(content)?;
             let event_sent_to_recipients = EventSentToRecipients(signed);
+
+            let acknowledgements_for_this_entry = acknowledgements_entries
+                .iter()
+                .filter(|ack| {
+                    ack.0
+                        .payload
+                        .content
+                        .private_event_hash
+                        .eq(&EntryHash::from(event_hash.clone()))
+                })
+                .cloned()
+                .collect();
+
+            let mut events_sent_to_recipients_for_this_entry: Vec<EventSentToRecipients> =
+                events_sent_to_recipients_entries
+                    .iter()
+                    .filter(|event_sent_to_recipients| {
+                        event_sent_to_recipients
+                            .0
+                            .payload
+                            .content
+                            .event_hash
+                            .eq(&EntryHash::from(event_hash.clone()))
+                    })
+                    .cloned()
+                    .collect();
+
+            events_sent_to_recipients_for_this_entry.push(event_sent_to_recipients.clone());
 
             let message = Message {
                 private_events: vec![private_event_entry],
-                events_sent_to_recipients: vec![event_sent_to_recipients], // Query all event_sent_to_recipient
-                acknowledgments: vec![],
+                events_sent_to_recipients: events_sent_to_recipients_for_this_entry,
+                acknowledgements: acknowledgements_for_this_entry,
             };
 
             send_remote_signal(
@@ -99,7 +133,7 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
             )?;
 
             if let Ok(()) = send_async_message(recipients_to_send.clone(), message) {
-                create_relaxed(event_sent_to_recipients)?;
+                create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
             }
         }
     }
@@ -109,10 +143,21 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
 
 #[hdk_extern]
 pub fn synchronize_with_linked_device(linked_device: AgentPubKey) -> ExternResult<()> {
-    let entries = query_private_event_entries(())?;
+    let private_events = query_private_event_entries(())?
+        .into_iter()
+        .map(|(_, e)| e)
+        .collect();
+    let events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let acknowledgements = query_acknowledgement_entries()?;
+
+    let message = Message {
+        private_events,
+        events_sent_to_recipients,
+        acknowledgements,
+    };
 
     send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(entries))
+        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(message))
             .map_err(|err| wasm_error!(err))?,
         vec![linked_device],
     )?;

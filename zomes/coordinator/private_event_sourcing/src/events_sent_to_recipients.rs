@@ -4,8 +4,7 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    query_event_histories, query_private_event_entries, signed_entry::validate_signed_entry,
-    utils::create_relaxed, PrivateEvent,
+    query_event_histories, query_private_event_entries, utils::create_relaxed, PrivateEvent,
 };
 
 pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
@@ -25,7 +24,7 @@ pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
             continue;
         }
 
-        let valid = validate_signed_entry(event_sent_to_recipients.0)?;
+        let valid = event_sent_to_recipients.0.verify()?;
 
         if !valid {
             return Err(wasm_error!(
@@ -45,7 +44,7 @@ pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
         } else {
             create_relaxed(EntryTypes::AwaitingDependencies(
                 AwaitingDependencies::EventsSentToRecipients {
-                    events_sent_to_recipients,
+                    event_sent_to_recipients,
                 },
             ))?;
         }

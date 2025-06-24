@@ -1,22 +1,17 @@
-use std::collections::BTreeMap;
-
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
     acknowledgements::query_acknowledgement_entries,
-    events_sent_to_recipients::{
-        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
-    },
-    internal_create_private_event, query_private_event_entries,
-    utils::create_relaxed,
-    validate_private_event_entry, PrivateEvent, PrivateEventContent,
+    events_sent_to_recipients::query_events_sent_to_recipients_entries,
+    internal_create_private_event, query_private_event_entries, utils::create_relaxed,
+    validate_private_event_entry, PrivateEvent,
 };
 
 pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<()> {
     let mut entries: Vec<PrivateEventEntry> = query_awaiting_deps_private_event_entries()?;
 
-    entries.sort_by(|e1, e2| e1.0.event.timestamp.cmp(&e2.0.event.timestamp));
+    entries.sort_by_key(|e1| e1.0.payload.timestamp);
 
     let private_event_entries = query_private_event_entries(())?;
     for private_event_entry in entries {
@@ -41,11 +36,14 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
 
     let events_sent_to_recipients = query_awaiting_deps_events_sent_to_recipients()?;
     for events_sent_to_recipients in events_sent_to_recipients {
-        if private_event_entries
-            .contains_key(&EntryHashB64::from(private_event_entries.contains_key(
-                &events_sent_to_recipients.0.payload.content.event_hash,
-            )))
-        {
+        if private_event_entries.contains_key(&EntryHashB64::from(
+            events_sent_to_recipients
+                .0
+                .payload
+                .content
+                .event_hash
+                .clone(),
+        )) {
             create_relaxed(EntryTypes::EventSentToRecipients(events_sent_to_recipients))?;
         }
     }
@@ -54,7 +52,7 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
 
     for acknowledgement in acknowledgements {
         if private_event_entries.contains_key(&EntryHashB64::from(
-            acknowledgement.content.private_event_hash.clone(),
+            acknowledgement.0.payload.content.private_event_hash.clone(),
         )) {
             create_relaxed(EntryTypes::Acknowledgement(acknowledgement))?;
         }
@@ -78,7 +76,7 @@ pub fn query_awaiting_deps_private_event_entries() -> ExternResult<Vec<PrivateEv
             let Ok(hash) = hash_entry(event) else {
                 return false;
             };
-            !existing_private_event_entries.contains_key(hash)
+            !existing_private_event_entries.contains_key(&EntryHashB64::from(hash.clone()))
         })
         .collect();
 
@@ -94,8 +92,8 @@ pub fn query_awaiting_deps_events_sent_to_recipients() -> ExternResult<Vec<Event
         .into_iter()
         .filter_map(|awaiting_deps| match awaiting_deps {
             AwaitingDependencies::EventsSentToRecipients {
-                events_sent_to_recipients,
-            } => Some(events_sent_to_recipients),
+                event_sent_to_recipients,
+            } => Some(event_sent_to_recipients),
             _ => None,
         })
         .filter(|events_sent_to_recipients| {
@@ -138,13 +136,16 @@ pub fn query_awaiting_deps() -> ExternResult<Vec<AwaitingDependencies>> {
 
     let awaiting_dependencies = create_records
         .into_iter()
-        .map(|record| {
-            record
-                .entry()
-                .to_app_option::<AwaitingDependencies>()
-                .map_err(|err| wasm_error!(err))
+        .filter_map(|record| {
+            let Some(entry) = record.entry.as_option() else {
+                return None;
+            };
+            let Ok(awaiting_deps) = AwaitingDependencies::try_from(entry) else {
+                return None;
+            };
+            Some(awaiting_deps)
         })
-        .collect::<ExternResult<Vec<AwaitingDependencies>>>()?;
+        .collect();
 
     Ok(awaiting_dependencies)
 }

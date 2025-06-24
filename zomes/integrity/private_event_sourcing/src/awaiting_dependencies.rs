@@ -14,7 +14,7 @@ pub enum AwaitingDependencies {
         acknowledgement: Acknowledgement,
     },
     EventsSentToRecipients {
-        events_sent_to_recipients: EventSentToRecipients,
+        event_sent_to_recipients: EventSentToRecipients,
     },
 }
 

@@ -1,5 +1,4 @@
 use hdk::prelude::*;
-use std::collections::BTreeMap;
 pub use strum::IntoStaticStr;
 
 pub use acknowledgements::*;
@@ -19,8 +18,6 @@ pub use event_history::*;
 mod send_events;
 pub use send_events::send_events;
 mod events_sent_to_recipients;
-
-mod signed_entry;
 
 mod async_message;
 pub use async_message::*;

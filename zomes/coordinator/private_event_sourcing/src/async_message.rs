@@ -7,11 +7,8 @@ use crate::{
     receive_private_events, PrivateEvent,
 };
 
-fn async_message_zome() -> ExternResult<Option<ZomeName>> {
-    match std::option_env!("ASYNC_MESSAGE_ZOME") {
-        Some(z) => Ok(z.to_string().into()),
-        None => Err(wasm_error!("No async message zome set.")),
-    }
+fn async_message_zome() -> Option<ZomeName> {
+    std::option_env!("ASYNC_MESSAGE_ZOME").map(|z| z.to_string().into())
 }
 
 pub fn send_async_message(recipients: BTreeSet<AgentPubKey>, message: Message) -> ExternResult<()> {
@@ -24,7 +21,7 @@ pub fn send_async_message(recipients: BTreeSet<AgentPubKey>, message: Message) -
 
     call(
         CallTargetCell::Local,
-        async_message_zome()?,
+        zome,
         FunctionName::from("send_async_message"),
         None,
         SendAsyncMessageInput {
@@ -44,7 +41,7 @@ pub fn receive_message<T: PrivateEvent>(
 
     receive_events_sent_to_recipients::<T>(provenance.clone(), message.events_sent_to_recipients)?;
 
-    receive_acknowledgements::<T>(provenance.clone(), message.acknowledgments)?;
+    receive_acknowledgements::<T>(provenance.clone(), message.acknowledgements)?;
 
     Ok(())
 }
