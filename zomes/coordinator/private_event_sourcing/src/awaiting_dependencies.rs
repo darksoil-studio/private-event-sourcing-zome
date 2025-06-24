@@ -4,8 +4,8 @@ use private_event_sourcing_integrity::*;
 use crate::{
     acknowledgements::query_acknowledgement_entries,
     events_sent_to_recipients::query_events_sent_to_recipients_entries,
-    internal_create_private_event, query_private_event_entries, utils::create_relaxed,
-    validate_private_event_entry, PrivateEvent,
+    internal_create_private_event, query_event_histories, query_private_event_entries,
+    utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
 pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<()> {
@@ -134,7 +134,7 @@ pub fn query_awaiting_deps() -> ExternResult<Vec<AwaitingDependencies>> {
         .action_type(ActionType::Create);
     let create_records = query(filter)?;
 
-    let awaiting_dependencies = create_records
+    let mut awaiting_dependencies: Vec<AwaitingDependencies> = create_records
         .into_iter()
         .filter_map(|record| {
             let Some(entry) = record.entry.as_option() else {
@@ -146,6 +146,12 @@ pub fn query_awaiting_deps() -> ExternResult<Vec<AwaitingDependencies>> {
             Some(awaiting_deps)
         })
         .collect();
+
+    let mut histories = query_event_histories()?;
+
+    for history in &mut histories {
+        awaiting_dependencies.append(&mut history.awaiting_deps);
+    }
 
     Ok(awaiting_dependencies)
 }

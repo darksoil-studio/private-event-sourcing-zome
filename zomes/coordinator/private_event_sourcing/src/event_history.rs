@@ -2,7 +2,7 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::{EntryTypes, EventHistory, UnitEntryTypes};
 
 use crate::{
-    acknowledgements::query_acknowledgement_entries,
+    acknowledgements::query_acknowledgement_entries, awaiting_dependencies::query_awaiting_deps,
     events_sent_to_recipients::query_events_sent_to_recipients_entries,
     query_private_event_entries, utils::create_relaxed,
 };
@@ -29,10 +29,12 @@ pub fn query_event_histories() -> ExternResult<Vec<EventHistory>> {
 
 pub fn export_event_history() -> ExternResult<EventHistory> {
     let acknowledgements = query_acknowledgement_entries()?;
+    let awaiting_deps = query_awaiting_deps()?;
     let events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
     let events = query_private_event_entries(())?;
 
     Ok(EventHistory {
+        awaiting_deps,
         events,
         events_sent_to_recipients,
         acknowledgements,
