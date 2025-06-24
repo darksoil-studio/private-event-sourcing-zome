@@ -3,8 +3,8 @@ use hdk::prelude::*;
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 pub struct Message {
     pub private_events: Vec<PrivateEventEntry>,
-    pub acknowledgments: Vec<Acknowledgement>,
     pub events_sent_to_recipients: Vec<EventSentToRecipients>,
+    pub acknowledgments: Vec<Acknowledgement>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

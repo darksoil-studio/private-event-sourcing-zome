@@ -8,10 +8,10 @@ use crate::{
     send_async_message,
     signed_entry::{build_signed_entry, validate_signed_entry},
     utils::create_relaxed,
-    PrivateEventContent, PrivateEventSourcingRemoteSignal,
+    PrivateEvent, PrivateEventContent, PrivateEventSourcingRemoteSignal,
 };
 
-pub fn create_acknowledgements<T: PrivateEventContent>(
+pub fn create_acknowledgements<T: PrivateEvent>(
     events_hashes: BTreeSet<EntryHashB64>,
 ) -> ExternResult<()> {
     for event_hash in events_hashes {
@@ -28,14 +28,15 @@ pub fn query_acknowledgement_for(
     Ok(acknowledgements
         .iter()
         .find(|a| {
-            a.content
+            a.0.payload
+                .content
                 .private_event_hash
                 .eq(&EntryHash::from(event_hash.clone()))
         })
         .cloned())
 }
 
-pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEventContent>(
+pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
     event_hash: &EntryHashB64,
     recipient: &AgentPubKey,
 ) -> ExternResult<()> {
@@ -56,9 +57,7 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEventContent>(
     Ok(())
 }
 
-pub fn create_acknowledgement<T: PrivateEventContent>(
-    event_hash: EntryHashB64,
-) -> ExternResult<()> {
+pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> ExternResult<()> {
     let Some(private_event_entry) = query_private_event_entry(event_hash.clone().into())? else {
         return Err(wasm_error!("Could not find private event"));
     };
@@ -101,7 +100,7 @@ pub fn create_acknowledgement<T: PrivateEventContent>(
     Ok(())
 }
 
-pub fn receive_acknowledgements<T: PrivateEventContent>(
+pub fn receive_acknowledgements<T: PrivateEvent>(
     provenance: AgentPubKey,
     acknowledgements: Vec<Acknowledgement>,
 ) -> ExternResult<()> {

@@ -27,7 +27,7 @@ pub use async_message::*;
 
 pub use private_event_proc_macro::*;
 
-pub fn scheduled_tasks<T: PrivateEventContent>() -> ExternResult<()> {
+pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
     send_events::<T>()?;
     Ok(())
 }
@@ -85,7 +85,7 @@ pub enum PrivateEventSourcingRemoteSignal {
     SendMessage(Message),
 }
 
-pub fn recv_private_events_remote_signal<T: PrivateEventContent>(
+pub fn recv_private_events_remote_signal<T: PrivateEvent>(
     signal: PrivateEventSourcingRemoteSignal,
 ) -> ExternResult<()> {
     let provenance = call_info()?.provenance;

@@ -5,9 +5,10 @@ use private_event_sourcing_integrity::*;
 
 use crate::{
     query_event_histories, query_private_event_entries, signed_entry::validate_signed_entry,
+    utils::create_relaxed, PrivateEvent,
 };
 
-pub fn receive_events_sent_to_recipients<T: PrivateEventContent>(
+pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
     _provenance: AgentPubKey,
     events_sent_to_recipients: Vec<EventSentToRecipients>,
 ) -> ExternResult<()> {
@@ -55,7 +56,7 @@ pub fn receive_events_sent_to_recipients<T: PrivateEventContent>(
 
 pub fn query_events_sent_to_recipients(
 ) -> ExternResult<BTreeMap<EntryHash, BTreeMap<AgentPubKey, Timestamp>>> {
-    let events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
+    let mut events_sent_to_recipients = query_events_sent_to_recipients_entries()?;
 
     events_sent_to_recipients.sort_by_key(|e| e.0.payload.timestamp.clone());
 
@@ -65,11 +66,12 @@ pub fn query_events_sent_to_recipients(
         let mut agents_with_last_sent: BTreeMap<AgentPubKey, Timestamp> = BTreeMap::new();
 
         for agent in event_sent_to_recipients.0.payload.content.recipients {
-            agents_with_last_sent.insert(agent, timestamp.clone());
+            agents_with_last_sent
+                .insert(agent, event_sent_to_recipients.0.payload.timestamp.clone());
         }
 
         all_events
-            .entry(event_hash)
+            .entry(event_sent_to_recipients.0.payload.content.event_hash)
             .or_insert(BTreeMap::new())
             .append(&mut agents_with_last_sent);
     }
