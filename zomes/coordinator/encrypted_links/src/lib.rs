@@ -30,7 +30,7 @@ fn commit_pending_entries(_: Option<Schedule>) -> Option<Schedule> {
     Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
 }
 
-pub fn internal_commit_pending_entries() -> ExternResult<Sche> {
+pub fn internal_commit_pending_entries() -> ExternResult<()> {
     let messages = get_my_pending_encrypted_messages()?;
 
     for (provenance, message) in messages {

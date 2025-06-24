@@ -1,13 +1,8 @@
-use std::collections::BTreeMap;
-
 use encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 use hdk::prelude::*;
 use private_event_sourcing_types::Message;
 
 use crate::utils::{create_link_relaxed, create_relaxed, delete_link_relaxed};
-
-#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
-pub struct PlainPrivateEventEntries(pub BTreeMap<EntryHashB64, PrivateEventEntry>);
 
 pub fn create_encrypted_message(recipient: AgentPubKey, message: Vec<u8>) -> ExternResult<()> {
     let chunks: Vec<XSalsa20Poly1305Data> =
@@ -116,5 +111,5 @@ pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Mes
         delete_link_relaxed(link.create_link_hash)?;
     }
 
-    Ok(message)
+    Ok(messages)
 }
