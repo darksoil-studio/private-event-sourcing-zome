@@ -185,7 +185,31 @@
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
@@ -195,11 +219,77 @@
     send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
-<span class="kw">pub fn </span>create_acknowledgements&lt;T: PrivateEvent&gt;(
-    events_hashes: BTreeSet&lt;EntryHashB64&gt;,
-) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">for </span>event_hash <span class="kw">in </span>events_hashes {
-        create_acknowledgement::&lt;T&gt;(event_hash)<span class="question-mark">?</span>;
+<span class="kw">pub fn </span>create_acknowledgements&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
+    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgement_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">for </span>(event_hash, private_event_entry) <span class="kw">in </span>private_event_entries {
+        <span class="kw">if </span>private_event_entry
+            .<span class="number">0
+            </span>.author
+            .eq(<span class="kw-2">&amp;</span>agent_info()<span class="question-mark">?</span>.agent_initial_pubkey)
+        {
+            <span class="kw">continue</span>; <span class="comment">// We are the author, no need to create acknowledgement
+        </span>}
+
+        <span class="kw">if </span>acknowledgement_entries.iter().any(|a| {
+            a.<span class="number">0</span>.payload
+                .content
+                .private_event_hash
+                .eq(<span class="kw-2">&amp;</span>EntryHash::from(event_hash.clone()))
+        }) {
+            <span class="comment">// We have already created an acknowledgement for this entry
+            </span><span class="kw">continue</span>;
+        }
+        <span class="kw">let </span>acknowledgement_content = AcknowledgementContent {
+            private_event_hash: event_hash.clone().into(),
+        };
+        <span class="kw">let </span>signed_entry = SignedEntry::build(acknowledgement_content)<span class="question-mark">?</span>;
+        <span class="kw">let </span>acknowledgement = Acknowledgement(signed_entry);
+
+        <span class="macro">info!</span>(<span class="string">"Creating acknowledgement for entry {}."</span>, event_hash);
+        create_relaxed(EntryTypes::Acknowledgement(acknowledgement.clone()))<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event.clone())
+            .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>recipients = private_event.recipients(
+            event_hash.clone().into(),
+            private_event_entry.<span class="number">0</span>.author.clone(),
+            private_event_entry.<span class="number">0</span>.payload.timestamp,
+        )<span class="question-mark">?</span>;
+
+        recipients.insert(private_event_entry.<span class="number">0</span>.author);
+
+        <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
+
+        <span class="kw">let </span>recipients: BTreeSet&lt;AgentPubKey&gt; = recipients
+            .into_iter()
+            .filter(|agent| agent.ne(<span class="kw-2">&amp;</span>my_pub_key))
+            .collect();
+
+        <span class="kw">let </span>message = Message {
+            private_events: <span class="macro">vec!</span>[],
+            acknowledgements: <span class="macro">vec!</span>[acknowledgement],
+            events_sent_to_recipients: <span class="macro">vec!</span>[],
+        };
+
+        <span class="kw">if </span>recipients.len() &gt; <span class="number">0 </span>{
+            <span class="macro">info!</span>(
+                <span class="string">"Sending acknowledgement for entry {} to {:?}."</span>,
+                event_hash, recipients
+            );
+
+            send_remote_signal(
+                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                    message.clone(),
+                ))
+                .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
+                recipients.clone().into_iter().collect(),
+            )<span class="question-mark">?</span>;
+
+            send_async_message(recipients, message)<span class="question-mark">?</span>;
+        }
     }
 
     <span class="prelude-val">Ok</span>(())
@@ -247,54 +337,8 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">pub fn </span>create_acknowledgement&lt;T: PrivateEvent&gt;(event_hash: EntryHashB64) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span><span class="prelude-val">Some</span>(private_event_entry) = query_private_event_entry(event_hash.clone().into())<span class="question-mark">? </span><span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Could not find private event"</span>));
-    };
-
-    <span class="kw">let </span>acknowledgement = <span class="kw">if let </span><span class="prelude-val">Some</span>(ack) = query_acknowledgement_for(<span class="kw-2">&amp;</span>event_hash)<span class="question-mark">? </span>{
-        ack.clone()
-    } <span class="kw">else </span>{
-        <span class="kw">let </span>acknowledgement_content = AcknowledgementContent {
-            private_event_hash: event_hash.clone().into(),
-        };
-        <span class="kw">let </span>signed_entry = SignedEntry::build(acknowledgement_content)<span class="question-mark">?</span>;
-        <span class="kw">let </span>acknowledgement = Acknowledgement(signed_entry);
-
-        create_relaxed(EntryTypes::Acknowledgement(acknowledgement.clone()))<span class="question-mark">?</span>;
-        acknowledgement
-    };
-
-    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event.clone())
-        .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>recipients = private_event.recipients(
-        event_hash.into(),
-        private_event_entry.<span class="number">0</span>.author,
-        private_event_entry.<span class="number">0</span>.payload.timestamp,
-    )<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>message = Message {
-        private_events: <span class="macro">vec!</span>[],
-        acknowledgements: <span class="macro">vec!</span>[acknowledgement],
-        events_sent_to_recipients: <span class="macro">vec!</span>[],
-    };
-
-    send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
-            message.clone(),
-        ))
-        .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
-        recipients.clone().into_iter().collect(),
-    )<span class="question-mark">?</span>;
-
-    send_async_message(recipients, message)<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(())
-}
-
 <span class="kw">pub fn </span>receive_acknowledgements&lt;T: PrivateEvent&gt;(
-    _provenance: AgentPubKey,
+    provenance: AgentPubKey,
     acknowledgements: Vec&lt;Acknowledgement&gt;,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>current_acknowledgements = query_acknowledgement_entries(())<span class="question-mark">?</span>;
@@ -316,9 +360,13 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Invalid acknowledgement: invalid signature."</span>));
         }
 
-        <span class="kw">if </span>current_events.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(
-            acknowledgement.<span class="number">0</span>.payload.content.private_event_hash.clone(),
-        )) {
+        <span class="kw">let </span>event_hash = acknowledgement.<span class="number">0</span>.payload.content.private_event_hash.clone();
+
+        <span class="kw">if </span>current_events.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(event_hash.clone())) {
+            <span class="macro">info!</span>(
+                <span class="string">"Received acknowledgement for entry {} from agent {}."</span>,
+                event_hash, provenance,
+            );
             create_relaxed(EntryTypes::Acknowledgement(acknowledgement))<span class="question-mark">?</span>;
         } <span class="kw">else </span>{
             create_relaxed(EntryTypes::AwaitingDependencies(

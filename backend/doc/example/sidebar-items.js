@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Event"],"fn":["add_friend","attempt_commit_awaiting_deps_entries","create_acknowledgements","create_private_shared_entry","migrate_from_old_cell","query_friends","receive_message","recv_remote_signal","send_events"]};
+window.SIDEBAR_ITEMS = {"enum":["Event"],"fn":["add_friend","attempt_commit_awaiting_deps_entries","create_acknowledgements","create_private_shared_entry","migrate_from_old_cell","query_friends","receive_message","recv_remote_signal","resend_events_if_necessary","send_new_events"]};

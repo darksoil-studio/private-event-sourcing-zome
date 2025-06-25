@@ -266,7 +266,19 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>strum::IntoStaticStr;
 
 <span class="kw">pub use </span>acknowledgements::<span class="kw-2">*</span>;
@@ -284,7 +296,7 @@
 <span class="kw">mod </span>utils;
 <span class="kw">pub use </span>event_history::<span class="kw-2">*</span>;
 <span class="kw">mod </span>send_events;
-<span class="kw">pub use </span>send_events::send_events;
+<span class="kw">pub use </span>send_events::{resend_events_if_necessary, send_new_events};
 <span class="kw">mod </span>events_sent_to_recipients;
 
 <span class="kw">mod </span>async_message;
@@ -293,7 +305,9 @@
 <span class="kw">pub use </span>private_event_proc_macro::<span class="kw-2">*</span>;
 
 <span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    send_events::&lt;T&gt;()<span class="question-mark">?</span>;
+    resend_events_if_necessary::&lt;T&gt;()<span class="question-mark">?</span>;
+    attempt_commit_awaiting_deps_entries::&lt;T&gt;()<span class="question-mark">?</span>;
+    create_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -380,25 +394,25 @@
         <span class="kw">let </span>result = call(
             CallTargetCell::Local,
             zome_info()<span class="question-mark">?</span>.name,
+            <span class="string">"send_new_events"</span>.into(),
+            <span class="prelude-val">None</span>,
+            new_private_event_hashes.clone(),
+        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
+        };
+        <span class="kw">let </span>result = call(
+            CallTargetCell::Local,
+            zome_info()<span class="question-mark">?</span>.name,
             <span class="string">"create_acknowledgements"</span>.into(),
             <span class="prelude-val">None</span>,
-            new_private_event_hashes,
+            (),
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
                 <span class="string">"Error calling 'create_acknowledgements': {:?}"</span>,
                 result
             ));
-        };
-        <span class="kw">let </span>result = call(
-            CallTargetCell::Local,
-            zome_info()<span class="question-mark">?</span>.name,
-            <span class="string">"send_events"</span>.into(),
-            <span class="prelude-val">None</span>,
-            (),
-        )<span class="question-mark">?</span>;
-        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
         };
         <span class="kw">let </span>result = call(
             CallTargetCell::Local,
@@ -412,6 +426,16 @@
                 <span class="string">"Error calling 'attempt_commit_awaiting_deps_entries': {:?}"</span>,
                 result
             ));
+        };
+        <span class="kw">let </span>result = call(
+            CallTargetCell::Local,
+            zome_info()<span class="question-mark">?</span>.name,
+            <span class="string">"resend_events_if_necessary"</span>.into(),
+            <span class="prelude-val">None</span>,
+            (),
+        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
         };
     }
 
