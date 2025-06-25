@@ -3,9 +3,8 @@ use private_event_sourcing_integrity::*;
 
 use crate::{
     acknowledgements::query_acknowledgement_entries,
-    events_sent_to_recipients::query_events_sent_to_recipients_entries,
-    internal_create_private_event, query_event_histories, query_private_event_entries,
-    utils::create_relaxed, validate_private_event_entry, PrivateEvent,
+    events_sent_to_recipients::query_events_sent_to_recipients_entries, query_event_histories,
+    query_private_event_entries, utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
 pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<()> {
@@ -22,7 +21,7 @@ pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<(
 
             match valid {
                 ValidateCallbackResult::Valid => {
-                    internal_create_private_event::<T>(private_event_entry)?;
+                    create_relaxed(EntryTypes::PrivateEvent(private_event_entry))?;
                 }
                 ValidateCallbackResult::Invalid(reason) => {
                     error!("Invalid awaiting dependencies entry: {reason}");
