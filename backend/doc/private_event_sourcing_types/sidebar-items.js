@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Acknowledgement","AcknowledgementContent","EventSentToRecipients","EventSentToRecipientsContent","Message","PrivateEventContent","PrivateEventEntry","ReceiveMessageInput","SignedContent","SignedEntry"],"type":["SignedEvent"]};

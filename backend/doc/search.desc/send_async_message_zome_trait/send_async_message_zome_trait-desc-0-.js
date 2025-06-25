@@ -1,0 +1,1 @@
+searchState.loadedDescShard("send_async_message_zome_trait", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.")

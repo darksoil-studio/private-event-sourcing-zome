@@ -164,218 +164,166 @@
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
-
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
-    EncryptedMessage, EventHistorySummary, PrivateEventEntry, UnitEntryTypes,
+    EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message, SignedEntry,
 };
 
 <span class="kw">use crate</span>::{
-    agent_encrypted_message::{get_agent_encrypted_messages, get_message},
-    create_encrypted_message, query_my_linked_devices, query_private_event_entries, PrivateEvent,
-    PrivateEventSourcingRemoteSignal,
+    acknowledgements::query_acknowledgements_by_agents,
+    events_sent_to_recipients::{
+        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
+    },
+    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
+    send_async_message,
+    utils::create_relaxed,
+    PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
-<span class="kw">pub fn </span>send_events&lt;T: PrivateEvent&gt;(events_hashes: BTreeSet&lt;EntryHash&gt;) -&gt; ExternResult&lt;()&gt; {
+<span class="kw">const </span>INTERVAL_RESEND_MS: i64 = <span class="number">1000 </span>* <span class="number">60 </span>* <span class="number">60 </span>* <span class="number">24 </span>* <span class="number">1000</span>; <span class="comment">// 1000 days
+
+</span><span class="kw">pub fn </span>send_events&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
+    <span class="macro">debug!</span>(<span class="string">"[send_events] Sending events to linked devices and recipients if necessary."</span>);
+
     <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
-    <span class="kw">let </span>now = sys_time()<span class="question-mark">?</span>.as_millis();
-
-    <span class="kw">let </span>filtered_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; = entries
-        .into_iter()
-        .filter(|(key, _value)| events_hashes.contains(<span class="kw-2">&amp;</span>EntryHash::from(key.clone())))
-        .filter(|(_key, value)| {
-            <span class="kw">let </span>elapsed = now - value.<span class="number">0</span>.event.timestamp.as_millis();
-            <span class="kw">let </span>entry_was_committed_less_than_10_seconds_ago = elapsed &lt; <span class="number">10 </span>* <span class="number">1000</span>;
-            value.<span class="number">0</span>.author.eq(<span class="kw-2">&amp;</span>my_pub_key) || !entry_was_committed_less_than_10_seconds_ago
-        })
-        .collect();
-
-    send_events_to_linked_devices_and_recipients::&lt;T&gt;(filtered_entries)
-}
-
-<span class="kw">pub fn </span>send_events_to_linked_devices_and_recipients&lt;T: PrivateEvent&gt;(
-    events: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
-) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">if </span>events.is_empty() {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-    }
-
-    <span class="macro">debug!</span>(
-        <span class="string">"[send_events] Sending events to linked devices and recipients if necessary: {:?}"</span>,
-        events.keys()
-    );
+    <span class="kw">let </span>events_sent_to_recipients = query_events_sent_to_recipients()<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgements = query_acknowledgements_by_agents()<span class="question-mark">?</span>;
+    <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
 
     <span class="kw">let </span>my_linked_devices = query_my_linked_devices()<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>events_for_recipients: BTreeMap&lt;AgentPubKey, BTreeSet&lt;EntryHashB64&gt;&gt; = BTreeMap::new();
+    <span class="kw">let </span>now = sys_time()<span class="question-mark">?</span>;
 
-    <span class="kw">for </span>(event_hash, private_event_entry) <span class="kw">in </span>events.iter() {
-        <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
-            .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
+    <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
 
-        <span class="kw">let </span>recipients_result = private_event.recipients(
+    <span class="kw">for </span>(event_hash, private_event_entry) <span class="kw">in </span>entries {
+        <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event.clone())
+            .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event"</span>))<span class="question-mark">?</span>;
+
+        <span class="comment">// For each event, get the recipients
+        </span><span class="kw">let </span>recipients_result = private_event.recipients(
             event_hash.clone().into(),
             private_event_entry.<span class="number">0</span>.author.clone(),
-            private_event_entry.<span class="number">0</span>.event.timestamp,
+            private_event_entry.<span class="number">0</span>.payload.timestamp,
         );
         <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>recipients) = recipients_result <span class="kw">else </span>{
             <span class="macro">warn!</span>(<span class="string">"Error calling PrivateEvent::recipients()"</span>);
             <span class="kw">continue</span>;
         };
-        recipients.remove(<span class="kw-2">&amp;</span>private_event_entry.<span class="number">0</span>.author);
         recipients.append(<span class="kw-2">&amp;mut </span>my_linked_devices.clone());
 
-        <span class="kw">for </span>recipient <span class="kw">in </span>recipients {
-            events_for_recipients
-                .entry(recipient)
-                .or_insert(BTreeSet::new())
-                .insert(event_hash.clone());
-        }
-    }
-
-    <span class="kw">for </span>(recipient, events_hashes_to_send) <span class="kw">in </span>events_for_recipients {
-        <span class="kw">let </span>existing_private_event_entries_hashes: BTreeSet&lt;EntryHash&gt; =
-            get_private_events_already_sent_to(<span class="kw-2">&amp;</span>recipient)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>missing_private_entry_hashes: BTreeSet&lt;EntryHashB64&gt; = events_hashes_to_send
+        <span class="comment">// Filter out the events with acknowledgements from all recipients
+        </span><span class="kw">let </span>recipients_without_acknowledgement: BTreeSet&lt;AgentPubKey&gt; = recipients
             .into_iter()
-            .filter(|entry_hash| {
-                !existing_private_event_entries_hashes.contains(<span class="kw-2">&amp;</span>entry_hash.clone().into())
+            .filter(|recipient| my_pub_key.ne(recipient)) <span class="comment">// Filter me out
+            </span>.filter(|recipient| private_event_entry.<span class="number">0</span>.author.ne(recipient)) <span class="comment">// Filter authors out
+            </span>.filter(|recipient| {
+                !acknowledgements
+                    .get(recipient)
+                    .cloned()
+                    .unwrap_or_default()
+                    .contains(<span class="kw-2">&amp;</span>EntryHash::from(event_hash.clone()))
             })
             .collect();
 
-        <span class="kw">let </span>events_to_send: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; =
-            missing_private_entry_hashes
-                .into_iter()
-                .filter_map(|event_hash| {
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(event) = events.get(<span class="kw-2">&amp;</span>event_hash) <span class="kw">else </span>{
-                        <span class="kw">return </span><span class="prelude-val">None</span>;
-                    };
-                    <span class="prelude-val">Some</span>((event_hash, event.clone()))
+        <span class="comment">// If the event was never sent or the last time it was sent was more than X, send it
+        </span><span class="kw">let </span>recipients_to_send: BTreeSet&lt;AgentPubKey&gt; = recipients_without_acknowledgement
+            .into_iter()
+            .filter(|recipient| {
+                <span class="kw">let </span>events_sent_for_recipient = events_sent_to_recipients
+                    .get(<span class="kw-2">&amp;</span>EntryHash::from(event_hash.clone()))
+                    .cloned()
+                    .unwrap_or_default();
+
+                <span class="kw">match </span>events_sent_for_recipient.get(recipient) {
+                    <span class="prelude-val">Some</span>(last_sent) =&gt; now.as_millis() - last_sent.as_millis() &gt; INTERVAL_RESEND_MS,
+                    <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
+                }
+            })
+            .collect();
+
+        <span class="kw">if </span>!recipients_to_send.is_empty() {
+            <span class="macro">info!</span>(
+                <span class="string">"Sending private event entry {} to recipients: {:?}."</span>,
+                event_hash, recipients_to_send
+            );
+
+            <span class="kw">let </span>content = EventSentToRecipientsContent {
+                event_hash: event_hash.clone().into(),
+                recipients: recipients_to_send.clone(),
+            };
+            <span class="kw">let </span>signed = SignedEntry::build(content)<span class="question-mark">?</span>;
+            <span class="kw">let </span>event_sent_to_recipients = EventSentToRecipients(signed);
+
+            <span class="kw">let </span>acknowledgements_for_this_entry = acknowledgements_entries
+                .iter()
+                .filter(|ack| {
+                    ack.<span class="number">0
+                        </span>.payload
+                        .content
+                        .private_event_hash
+                        .eq(<span class="kw-2">&amp;</span>EntryHash::from(event_hash.clone()))
                 })
+                .cloned()
                 .collect();
 
-        <span class="kw">if </span>!events_to_send.is_empty() {
-            <span class="macro">info!</span>(<span class="string">"Sending private events entry to recipient: {recipient:?}."</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>events_sent_to_recipients_for_this_entry: Vec&lt;EventSentToRecipients&gt; =
+                events_sent_to_recipients_entries
+                    .iter()
+                    .filter(|event_sent_to_recipients| {
+                        event_sent_to_recipients
+                            .<span class="number">0
+                            </span>.payload
+                            .content
+                            .event_hash
+                            .eq(<span class="kw-2">&amp;</span>EntryHash::from(event_hash.clone()))
+                    })
+                    .cloned()
+                    .collect();
+
+            events_sent_to_recipients_for_this_entry.push(event_sent_to_recipients.clone());
+
+            <span class="kw">let </span>message = Message {
+                private_events: <span class="macro">vec!</span>[private_event_entry],
+                events_sent_to_recipients: events_sent_to_recipients_for_this_entry,
+                acknowledgements: acknowledgements_for_this_entry,
+            };
 
             send_remote_signal(
-                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(
-                    events_to_send.clone(),
+                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                    message.clone(),
                 ))
                 .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
-                <span class="macro">vec!</span>[recipient.clone()],
+                recipients_to_send.clone().into_iter().collect(),
             )<span class="question-mark">?</span>;
 
-            create_encrypted_message(recipient, events_to_send)<span class="question-mark">?</span>;
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = send_async_message(recipients_to_send.clone(), message) {
+                create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))<span class="question-mark">?</span>;
+            }
         }
     }
 
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">pub fn </span>synchronize_all_entries&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
-    send_events::&lt;T&gt;(private_event_entries.into_keys().map(Into::into).collect())
-}
-
-<span class="kw">fn </span>get_private_events_already_sent_to(agent: <span class="kw-2">&amp;</span>AgentPubKey) -&gt; ExternResult&lt;BTreeSet&lt;EntryHash&gt;&gt; {
-    <span class="kw">let </span>filter = ChainQueryFilter::new().entry_type(UnitEntryTypes::PrivateEvent.try_into()<span class="question-mark">?</span>);
-    <span class="kw">let </span>activity = get_agent_activity(agent.clone(), filter, ActivityRequest::Full)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>get_inputs: Vec&lt;GetInput&gt; = activity
-        .valid_activity
-        .into_iter()
-        .map(|(<span class="kw">_</span>, action_hash)| GetInput::new(action_hash.into(), GetOptions::network()))
-        .collect();
-    <span class="kw">let </span>maybe_actions = HDK.with(|hdk| hdk.borrow().get(get_inputs))<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>entry_hashes: BTreeSet&lt;EntryHash&gt; = maybe_actions
-        .into_iter()
-        .filter_map(|r| r)
-        .filter_map(|r| <span class="kw">match </span>r.action() {
-            Action::Create(create) =&gt; <span class="prelude-val">Some</span>(create.entry_hash.clone()),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        })
-        .collect();
-
-    <span class="kw">let </span>filter =
-        ChainQueryFilter::new().entry_type(UnitEntryTypes::EventHistorySummary.try_into()<span class="question-mark">?</span>);
-    <span class="kw">let </span>activity = get_agent_activity(agent.clone(), filter, ActivityRequest::Full)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>get_inputs: Vec&lt;GetInput&gt; = activity
-        .valid_activity
-        .into_iter()
-        .map(|(<span class="kw">_</span>, action_hash)| GetInput::new(action_hash.into(), GetOptions::network()))
-        .collect();
-    <span class="kw">let </span>maybe_records = HDK.with(|hdk| hdk.borrow().get(get_inputs))<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>entry_hashes_from_summaries: BTreeSet&lt;EntryHash&gt; = maybe_records
-        .into_iter()
-        .filter_map(|r| r)
-        .filter_map(|r| {
-            <span class="kw">let </span>entry = r.entry().as_option().clone()<span class="question-mark">?</span>;
-            <span class="kw">let </span>event_history_summary = EventHistorySummary::try_from(entry).ok()<span class="question-mark">?</span>;
-            <span class="prelude-val">Some</span>(event_history_summary.events_hashes)
-        })
-        .flatten()
-        .collect();
-
-    entry_hashes.append(<span class="kw-2">&amp;mut </span>entry_hashes_from_summaries);
-
-    <span class="kw">let </span>links = get_agent_encrypted_messages(agent.clone())<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>encrypted_messages: Vec&lt;EncryptedMessage&gt; = links
-        .into_iter()
-        .map(|link| get_message(<span class="kw-2">&amp;</span>link))
-        .collect::&lt;ExternResult&lt;Vec&lt;<span class="prelude-ty">Option</span>&lt;EncryptedMessage&gt;&gt;&gt;&gt;()<span class="question-mark">?
-        </span>.into_iter()
-        .filter_map(|maybe_encrypted_message| maybe_encrypted_message)
-        .collect();
-
-    <span class="kw">let </span><span class="kw-2">mut </span>messages_sent_entry_hashes: BTreeSet&lt;EntryHash&gt; = encrypted_messages
-        .into_iter()
-        .map(|message| message.entry_hashes)
-        .flatten()
-        .map(|entry_hash| EntryHash::from(entry_hash))
-        .collect();
-    entry_hashes.append(<span class="kw-2">&amp;mut </span>messages_sent_entry_hashes);
-
-    <span class="prelude-val">Ok</span>(entry_hashes)
-}
-
 <span class="attr">#[hdk_extern]
 </span><span class="kw">pub fn </span>synchronize_with_linked_device(linked_device: AgentPubKey) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>private_events = query_private_event_entries(())<span class="question-mark">?
+        </span>.into_iter()
+        .map(|(<span class="kw">_</span>, e)| e)
+        .collect();
+    <span class="kw">let </span>events_sent_to_recipients = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgements = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>message = Message {
+        private_events,
+        events_sent_to_recipients,
+        acknowledgements,
+    };
 
     send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendPrivateEvents(entries))
+        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(message))
             .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>,
         <span class="macro">vec!</span>[linked_device],
     )<span class="question-mark">?</span>;

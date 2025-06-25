@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["example","example_integrity","private_event_proc_macro","private_event_sourcing","private_event_sourcing_integrity"];
-//{"start":21,"fragment_lengths":[9,20,27,25,35]}
+window.ALL_CRATES = ["encrypted_links","encrypted_links_integrity","example","example_integrity","private_event_proc_macro","private_event_sourcing","private_event_sourcing_integrity","private_event_sourcing_types","send_async_message_zome_trait"];
+//{"start":21,"fragment_lengths":[17,28,10,20,27,25,35,31,32]}

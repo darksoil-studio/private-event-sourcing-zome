@@ -66,28 +66,116 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
-
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 
 <span class="kw">use crate</span>::{
-    internal_create_private_event, query_private_event_entries, validate_private_event_entry,
-    PrivateEvent,
+    acknowledgements::query_acknowledgement_entries,
+    events_sent_to_recipients::query_events_sent_to_recipients_entries,
+    internal_create_private_event, query_event_histories, query_private_event_entries,
+    utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
 <span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;(EntryHashB64, PrivateEventEntry)&gt; =
-        query_awaiting_deps_entries()<span class="question-mark">?</span>.into_iter().collect();
+    <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;PrivateEventEntry&gt; = query_awaiting_deps_private_event_entries()<span class="question-mark">?</span>;
 
-    entries.sort_by(|e1, e2| e1.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp.cmp(<span class="kw-2">&amp;</span>e2.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp));
+    entries.sort_by_key(|e1| e1.<span class="number">0</span>.payload.timestamp);
 
     <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
-    <span class="kw">for </span>(_action_hash, private_event_entry) <span class="kw">in </span>entries {
+    <span class="kw">for </span>private_event_entry <span class="kw">in </span>entries {
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>!private_event_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash.clone().into()) {
-            <span class="kw">let </span>valid = validate_private_event_entry::&lt;T&gt;(entry_hash, <span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
+            <span class="kw">let </span>valid = validate_private_event_entry::&lt;T&gt;(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 
             <span class="kw">match </span>valid {
                 ValidateCallbackResult::Valid =&gt; {
@@ -101,37 +189,127 @@
         }
     }
 
+    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>events_sent_to_recipients = query_awaiting_deps_events_sent_to_recipients()<span class="question-mark">?</span>;
+    <span class="kw">for </span>events_sent_to_recipients <span class="kw">in </span>events_sent_to_recipients {
+        <span class="kw">if </span>private_event_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(
+            events_sent_to_recipients
+                .<span class="number">0
+                </span>.payload
+                .content
+                .event_hash
+                .clone(),
+        )) {
+            create_relaxed(EntryTypes::EventSentToRecipients(events_sent_to_recipients))<span class="question-mark">?</span>;
+        }
+    }
+
+    <span class="kw">let </span>acknowledgements = query_awaiting_deps_acknowledgements()<span class="question-mark">?</span>;
+
+    <span class="kw">for </span>acknowledgement <span class="kw">in </span>acknowledgements {
+        <span class="kw">if </span>private_event_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(
+            acknowledgement.<span class="number">0</span>.payload.content.private_event_hash.clone(),
+        )) {
+            create_relaxed(EntryTypes::Acknowledgement(acknowledgement))<span class="question-mark">?</span>;
+        }
+    }
+
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">pub fn </span>query_awaiting_deps_entries() -&gt; ExternResult&lt;BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;&gt; {
+<span class="kw">pub fn </span>query_awaiting_deps_private_event_entries() -&gt; ExternResult&lt;Vec&lt;PrivateEventEntry&gt;&gt; {
     <span class="kw">let </span>existing_private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
 
+    <span class="kw">let </span>awaiting_deps = query_awaiting_deps()<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>entries: Vec&lt;PrivateEventEntry&gt; = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| <span class="kw">match </span>awaiting_deps {
+            AwaitingDependencies::Event { event, .. } =&gt; <span class="prelude-val">Some</span>(event),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+        .filter(|event| {
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(hash) = hash_entry(event) <span class="kw">else </span>{
+                <span class="kw">return </span><span class="bool-val">false</span>;
+            };
+            !existing_private_event_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(hash.clone()))
+        })
+        .collect();
+
+    <span class="prelude-val">Ok</span>(entries)
+}
+
+<span class="kw">pub fn </span>query_awaiting_deps_events_sent_to_recipients() -&gt; ExternResult&lt;Vec&lt;EventSentToRecipients&gt;&gt; {
+    <span class="kw">let </span>existing_events_sent_to_recipients = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>awaiting_deps = query_awaiting_deps()<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>events_sent_to_recipients: Vec&lt;EventSentToRecipients&gt; = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| <span class="kw">match </span>awaiting_deps {
+            AwaitingDependencies::EventsSentToRecipients {
+                event_sent_to_recipients,
+            } =&gt; <span class="prelude-val">Some</span>(event_sent_to_recipients),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+        .filter(|events_sent_to_recipients| {
+            !existing_events_sent_to_recipients
+                .iter()
+                .any(|e| e.eq(events_sent_to_recipients))
+        })
+        .collect();
+
+    <span class="prelude-val">Ok</span>(events_sent_to_recipients)
+}
+
+<span class="kw">pub fn </span>query_awaiting_deps_acknowledgements() -&gt; ExternResult&lt;Vec&lt;Acknowledgement&gt;&gt; {
+    <span class="kw">let </span>existing_acknowledgements = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>awaiting_deps = query_awaiting_deps()<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>acknowledgements: Vec&lt;Acknowledgement&gt; = awaiting_deps
+        .into_iter()
+        .filter_map(|awaiting_deps| <span class="kw">match </span>awaiting_deps {
+            AwaitingDependencies::Acknowledgement { acknowledgement } =&gt; <span class="prelude-val">Some</span>(acknowledgement),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+        .filter(|acknowledgement| {
+            !existing_acknowledgements
+                .iter()
+                .any(|a| a.eq(acknowledgement))
+        })
+        .collect();
+
+    <span class="prelude-val">Ok</span>(acknowledgements)
+}
+
+<span class="kw">pub fn </span>query_awaiting_deps() -&gt; ExternResult&lt;Vec&lt;AwaitingDependencies&gt;&gt; {
     <span class="kw">let </span>filter = ChainQueryFilter::new()
         .entry_type(UnitEntryTypes::AwaitingDependencies.try_into()<span class="question-mark">?</span>)
         .include_entries(<span class="bool-val">true</span>)
         .action_type(ActionType::Create);
     <span class="kw">let </span>create_records = query(filter)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; = BTreeMap::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>awaiting_dependencies: Vec&lt;AwaitingDependencies&gt; = create_records
+        .into_iter()
+        .filter_map(|record| {
+            <span class="kw">let </span><span class="prelude-val">Some</span>(entry) = record.entry.as_option() <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(awaiting_deps) = AwaitingDependencies::try_from(entry) <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
+            <span class="prelude-val">Some</span>(awaiting_deps)
+        })
+        .collect();
 
-    <span class="kw">for </span>record <span class="kw">in </span>create_records {
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(private_event_entry)) = record
-            .entry()
-            .to_app_option::&lt;PrivateEventEntry&gt;()
-            .map_err(|err| <span class="macro">wasm_error!</span>(err))
-        <span class="kw">else </span>{
-            <span class="kw">continue</span>;
-        };
-        <span class="kw">let </span><span class="prelude-val">Some</span>(entry_hash) = record.action().entry_hash() <span class="kw">else </span>{
-            <span class="kw">continue</span>;
-        };
-        <span class="kw">if </span>existing_private_event_entries.contains_key(<span class="kw-2">&amp;</span>EntryHashB64::from(entry_hash.clone())) {
-            <span class="kw">continue</span>;
-        }
-        entries.insert(entry_hash.clone().into(), private_event_entry);
+    <span class="kw">let </span><span class="kw-2">mut </span>histories = query_event_histories()<span class="question-mark">?</span>;
+
+    <span class="kw">for </span>history <span class="kw">in </span><span class="kw-2">&amp;mut </span>histories {
+        awaiting_dependencies.append(<span class="kw-2">&amp;mut </span>history.awaiting_deps);
     }
 
-    <span class="prelude-val">Ok</span>(entries)
+    <span class="prelude-val">Ok</span>(awaiting_dependencies)
 }
 </code></pre></div></section></main></body></html>

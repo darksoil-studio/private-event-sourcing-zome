@@ -253,33 +253,47 @@
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<span class="kw">pub use </span>strum::IntoStaticStr;
 
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<span class="kw">pub use </span>acknowledgements::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 
-<span class="kw">mod </span>agent_encrypted_message;
-<span class="kw">pub use </span>agent_encrypted_message::{commit_my_pending_encrypted_messages, create_encrypted_message};
 <span class="kw">mod </span>awaiting_dependencies;
 <span class="kw">pub use </span>awaiting_dependencies::attempt_commit_awaiting_deps_entries;
+
 <span class="kw">mod </span>linked_devices;
 <span class="kw">pub use </span>linked_devices::<span class="kw-2">*</span>;
 <span class="kw">mod </span>private_event;
 <span class="kw">pub use </span>private_event::<span class="kw-2">*</span>;
+<span class="kw">mod </span>acknowledgements;
 <span class="kw">mod </span>event_history;
 <span class="kw">mod </span>utils;
 <span class="kw">pub use </span>event_history::<span class="kw-2">*</span>;
 <span class="kw">mod </span>send_events;
 <span class="kw">pub use </span>send_events::send_events;
+<span class="kw">mod </span>events_sent_to_recipients;
 
-<span class="kw">use </span>send_events::synchronize_all_entries;
-<span class="kw">pub use </span>strum::IntoStaticStr;
+<span class="kw">mod </span>async_message;
+<span class="kw">pub use </span>async_message::<span class="kw-2">*</span>;
 
 <span class="kw">pub use </span>private_event_proc_macro::<span class="kw-2">*</span>;
 
 <span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    commit_my_pending_encrypted_messages::&lt;T&gt;()<span class="question-mark">?</span>;
-    synchronize_all_entries::&lt;T&gt;()<span class="question-mark">?</span>;
+    send_events::&lt;T&gt;()<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -303,16 +317,16 @@
 <span class="attr">#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = <span class="string">"type"</span>)]
 </span><span class="kw">pub enum </span>Signal {
-    LinkCreated {
-        action: SignedActionHashed,
-        link_type: LinkTypes,
-    },
-    LinkDeleted {
-        action: SignedActionHashed,
-        create_link_action: SignedActionHashed,
-        link_type: LinkTypes,
-    },
-    NewPrivateEvent {
+    <span class="comment">// LinkCreated {
+    //     action: SignedActionHashed,
+    //     link_type: LinkTypes,
+    // },
+    // LinkDeleted {
+    //     action: SignedActionHashed,
+    //     create_link_action: SignedActionHashed,
+    //     link_type: LinkTypes,
+    // },
+    </span>NewPrivateEvent {
         event_hash: EntryHash,
         private_event_entry: PrivateEventEntry,
     },
@@ -333,17 +347,16 @@
 
 <span class="attr">#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 </span><span class="kw">pub enum </span>PrivateEventSourcingRemoteSignal {
-    SendPrivateEvents(BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;),
-    <span class="comment">// SynchronizeEntriesWithLinkedDevice(BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;),
-</span>}
+    SendMessage(Message),
+}
 
 <span class="kw">pub fn </span>recv_private_events_remote_signal&lt;T: PrivateEvent&gt;(
     signal: PrivateEventSourcingRemoteSignal,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>provenance = call_info()<span class="question-mark">?</span>.provenance;
     <span class="kw">match </span>signal {
-        PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) =&gt; {
-            receive_private_events::&lt;T&gt;(provenance, private_event_entries)
+        PrivateEventSourcingRemoteSignal::SendMessage(message) =&gt; {
+            receive_message::&lt;T&gt;(provenance, message)
         }
     }
 }
@@ -367,9 +380,22 @@
         <span class="kw">let </span>result = call(
             CallTargetCell::Local,
             zome_info()<span class="question-mark">?</span>.name,
-            <span class="string">"send_events"</span>.into(),
+            <span class="string">"create_acknowledgements"</span>.into(),
             <span class="prelude-val">None</span>,
             new_private_event_hashes,
+        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(
+                <span class="string">"Error calling 'create_acknowledgements': {:?}"</span>,
+                result
+            ));
+        };
+        <span class="kw">let </span>result = call(
+            CallTargetCell::Local,
+            zome_info()<span class="question-mark">?</span>.name,
+            <span class="string">"send_events"</span>.into(),
+            <span class="prelude-val">None</span>,
+            (),
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>ZomeCallResponse::Ok(<span class="kw">_</span>) = result <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"Error calling 'send_events': {:?}"</span>, result));
@@ -406,42 +432,42 @@
 }
 <span class="kw">fn </span>signal_action(action: SignedActionHashed) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">match </span>action.hashed.content.clone() {
-        Action::CreateLink(create_link) =&gt; {
-            <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(link_type)) =
-                LinkTypes::from_type(create_link.zome_index, create_link.link_type)
-            {
-                emit_signal(Signal::LinkCreated {
-                    action: action.clone(),
-                    link_type,
-                })<span class="question-mark">?</span>;
-            }
-            <span class="prelude-val">Ok</span>(())
-        }
-        Action::DeleteLink(delete_link) =&gt; {
-            <span class="kw">let </span>record = get(delete_link.link_add_address.clone(), GetOptions::default())<span class="question-mark">?</span>.ok_or(
-                <span class="macro">wasm_error!</span>(WasmErrorInner::Guest(
-                    <span class="string">"Failed to fetch CreateLink action"</span>.to_string()
-                )),
-            )<span class="question-mark">?</span>;
-            <span class="kw">match </span>record.action() {
-                Action::CreateLink(create_link) =&gt; {
-                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(link_type)) =
-                        LinkTypes::from_type(create_link.zome_index, create_link.link_type)
-                    {
-                        emit_signal(Signal::LinkDeleted {
-                            action,
-                            link_type,
-                            create_link_action: record.signed_action.clone(),
-                        })<span class="question-mark">?</span>;
-                    }
-                    <span class="prelude-val">Ok</span>(())
-                }
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(WasmErrorInner::Guest(
-                    <span class="string">"Create Link should exist"</span>.to_string()
-                ))),
-            }
-        }
-        Action::Create(create) =&gt; {
+        <span class="comment">// Action::CreateLink(create_link) =&gt; {
+        //     if let Ok(Some(link_type)) =
+        //         LinkTypes::from_type(create_link.zome_index, create_link.link_type)
+        //     {
+        //         emit_signal(Signal::LinkCreated {
+        //             action: action.clone(),
+        //             link_type,
+        //         })?;
+        //     }
+        //     Ok(())
+        // }
+        // Action::DeleteLink(delete_link) =&gt; {
+        //     let record = get(delete_link.link_add_address.clone(), GetOptions::default())?.ok_or(
+        //         wasm_error!(WasmErrorInner::Guest(
+        //             "Failed to fetch CreateLink action".to_string()
+        //         )),
+        //     )?;
+        //     match record.action() {
+        //         Action::CreateLink(create_link) =&gt; {
+        //             if let Ok(Some(link_type)) =
+        //                 LinkTypes::from_type(create_link.zome_index, create_link.link_type)
+        //             {
+        //                 emit_signal(Signal::LinkDeleted {
+        //                     action,
+        //                     link_type,
+        //                     create_link_action: record.signed_action.clone(),
+        //                 })?;
+        //             }
+        //             Ok(())
+        //         }
+        //         _ =&gt; Err(wasm_error!(WasmErrorInner::Guest(
+        //             "Create Link should exist".to_string()
+        //         ))),
+        //     }
+        // }
+        </span>Action::Create(create) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(app_entry)) = get_entry_for_action(<span class="kw-2">&amp;</span>action.hashed.hash) {
                 <span class="kw">match </span>app_entry.clone() {
                     EntryTypes::PrivateEvent(entry) =&gt; {

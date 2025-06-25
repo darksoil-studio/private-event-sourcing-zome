@@ -309,83 +309,14 @@
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::hash;
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
+<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>private_event_sourcing_integrity::{PrivateEventContent, <span class="kw-2">*</span>};
+<span class="kw">use </span>serde::de::DeserializeOwned;
 <span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use crate</span>::{
-    linked_devices::query_my_linked_devices,
-    send_events::{<span class="self">self</span>, send_events_to_linked_devices_and_recipients},
-    utils::create_relaxed,
-    Signal,
+    linked_devices::query_my_linked_devices, query_event_histories,
+    send_acknowledgement_for_event_to_recipient, utils::create_relaxed, Signal,
 };
 
 <span class="kw">pub trait </span>EventType {
@@ -393,7 +324,13 @@
 }
 
 <span class="kw">pub trait </span>PrivateEvent:
-    EventType + Clone + TryFrom&lt;SerializedBytes&gt; + TryInto&lt;SerializedBytes&gt;
+    EventType
+    + Clone
+    + DeserializeOwned
+    + Serialize
+    + std::fmt::Debug
+    + TryFrom&lt;SerializedBytes&gt;
+    + TryInto&lt;SerializedBytes&gt;
 {
     <span class="doccomment">/// Whether the given entry is to be accepted in to our source chain
     </span><span class="kw">fn </span>validate(
@@ -410,54 +347,23 @@
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -&gt; ExternResult&lt;BTreeSet&lt;AgentPubKey&gt;&gt;;
-
-    <span class="doccomment">/// Code to run after an event has been committed
-    </span><span class="kw">fn </span>post_commit(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        entry_hash: EntryHash,
-        author: AgentPubKey,
-        timestamp: Timestamp,
-    ) -&gt; ExternResult&lt;()&gt; {
-        <span class="prelude-val">Ok</span>(())
-    }
-}
-
-<span class="attr">#[hdk_entry_helper]
-</span><span class="kw">pub struct </span>SignedEntry(<span class="kw">pub </span>SignedContent&lt;SerializedBytes&gt;);
-
-<span class="kw">fn </span>build_private_event_entry&lt;T: PrivateEvent&gt;(
-    private_event: T,
-    timestamp: Timestamp,
-) -&gt; ExternResult&lt;PrivateEventEntry&gt; {
-    <span class="kw">let </span>event_type = private_event.event_type();
-    <span class="kw">let </span>bytes: SerializedBytes = private_event
-        .try_into()
-        .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to serialize private event."</span>))<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>signed: SignedContent&lt;SerializedBytes&gt; = SignedContent {
-        content: bytes,
-        timestamp,
-        event_type,
-    };
-    <span class="kw">let </span>signed_hash = hash_entry(<span class="kw-2">&amp;</span>SignedEntry(signed.clone()))<span class="question-mark">?</span>;
-    <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
-    <span class="kw">let </span>signature = sign(my_pub_key.clone(), <span class="kw-2">&amp;</span>signed_hash)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(PrivateEventEntry(SignedEvent {
-        author: my_pub_key,
-        signature,
-        event: signed,
-    }))
 }
 
 <span class="kw">pub fn </span>create_private_event&lt;T: PrivateEvent&gt;(private_event: T) -&gt; ExternResult&lt;EntryHash&gt; {
-    <span class="kw">let </span>timestamp = sys_time()<span class="question-mark">?</span>;
-    <span class="kw">let </span>entry = build_private_event_entry(private_event.clone(), timestamp)<span class="question-mark">?</span>;
+    <span class="kw">let </span>event_bytes: SerializedBytes = private_event
+        .clone()
+        .try_into()
+        .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to serialize."</span>))<span class="question-mark">?</span>;
+    <span class="kw">let </span>signed = SignedEntry::build(PrivateEventContent {
+        event_type: private_event.event_type(),
+        event: event_bytes,
+    })<span class="question-mark">?</span>;
+    <span class="kw">let </span>author = signed.author.clone();
+    <span class="kw">let </span>timestamp = signed.payload.timestamp.clone();
+    <span class="kw">let </span>entry = PrivateEventEntry(signed);
+
     <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>entry)<span class="question-mark">?</span>;
-    <span class="kw">let </span>validation_outcome = private_event.validate(
-        entry_hash,
-        agent_info()<span class="question-mark">?</span>.agent_initial_pubkey,
-        timestamp.clone(),
-    )<span class="question-mark">?</span>;
+    <span class="kw">let </span>validation_outcome = private_event.validate(entry_hash, author, timestamp)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>validation_outcome {
         ValidateCallbackResult::Valid =&gt; {}
@@ -473,87 +379,61 @@
     internal_create_private_event::&lt;T&gt;(entry)
 }
 
-<span class="kw">pub fn </span>send_private_events_to_new_recipients&lt;T: PrivateEvent&gt;(
-    events_hashes: BTreeSet&lt;EntryHash&gt;,
-) -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>filtered_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; = entries
-        .into_iter()
-        .filter(|(key, _value)| events_hashes.contains(<span class="kw-2">&amp;</span>EntryHash::from(key.clone())))
-        .collect();
-
-    send_events_to_linked_devices_and_recipients::&lt;T&gt;(filtered_entries)
-}
-
 <span class="kw">pub fn </span>validate_private_event_entry&lt;T: PrivateEvent&gt;(
-    entry_hash: EntryHash,
     private_event_entry: <span class="kw-2">&amp;</span>PrivateEventEntry,
 ) -&gt; ExternResult&lt;ValidateCallbackResult&gt; {
-    <span class="kw">let </span>signed_hash = hash_entry(<span class="kw-2">&amp;</span>SignedEntry(private_event_entry.<span class="number">0</span>.event.clone()))<span class="question-mark">?</span>;
-    <span class="kw">let </span>valid = verify_signature(
-        private_event_entry.<span class="number">0</span>.author.clone(),
-        private_event_entry.<span class="number">0</span>.signature.clone(),
-        <span class="kw-2">&amp;</span>signed_hash,
-    )<span class="question-mark">?</span>;
+    <span class="kw">let </span>signed_valid = private_event_entry.<span class="number">0</span>.verify()<span class="question-mark">?</span>;
 
-    <span class="kw">if </span>!valid {
+    <span class="kw">if </span>!signed_valid {
         <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(String::from(
             <span class="string">"Invalid private event entry: invalid signature."</span>,
         )));
     }
-    <span class="kw">let </span>expected_entry_hash = hash_entry(private_event_entry)<span class="question-mark">?</span>;
 
-    <span class="kw">if </span>expected_entry_hash.ne(<span class="kw-2">&amp;</span>entry_hash) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(String::from(
-            <span class="string">"Invalid private event entry: invalid entry hash."</span>,
-        )));
-    }
-
-    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
+    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event.clone())
+        .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize the private event."</span>))<span class="question-mark">?</span>;
 
     <span class="kw">if </span>private_event
         .event_type()
-        .ne(<span class="kw-2">&amp;</span>private_event_entry.<span class="number">0</span>.event.event_type)
+        .ne(<span class="kw-2">&amp;</span>private_event_entry.<span class="number">0</span>.payload.content.event_type)
     {
         <span class="kw">return </span><span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(<span class="macro">format!</span>(
             <span class="string">"Invalid event type: expected '{}', but got '{}'."</span>,
-            private_event_entry.<span class="number">0</span>.event.event_type,
+            private_event_entry.<span class="number">0</span>.payload.content.event_type,
             private_event.event_type()
         )));
     }
 
+    <span class="kw">let </span>entry_hash = hash_entry(private_event_entry)<span class="question-mark">?</span>;
+
     private_event.validate(
         entry_hash,
         private_event_entry.<span class="number">0</span>.author.clone(),
-        private_event_entry.<span class="number">0</span>.event.timestamp,
+        private_event_entry.<span class="number">0</span>.payload.timestamp,
     )
 }
 
 <span class="kw">pub fn </span>receive_private_events&lt;T: PrivateEvent&gt;(
     provenance: AgentPubKey,
-    private_event_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
+    private_event_entries: Vec&lt;PrivateEventEntry&gt;,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="macro">debug!</span>(<span class="string">"[receive_private_events/start]"</span>);
     <span class="comment">// check_is_linked_device(provenance)?;
 
     </span><span class="kw">let </span>my_private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>ordered_their_private_event_entries: Vec&lt;(EntryHashB64, PrivateEventEntry)&gt; =
-        private_event_entries.into_iter().collect();
+    <span class="kw">let </span><span class="kw-2">mut </span>ordered_their_private_event_entries: Vec&lt;PrivateEventEntry&gt; = private_event_entries;
+    ordered_their_private_event_entries.sort_by_key(|e| e.<span class="number">0</span>.payload.timestamp);
 
-    ordered_their_private_event_entries
-        .sort_by(|e1, e2| e1.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp.cmp(<span class="kw-2">&amp;</span>e2.<span class="number">1 </span>.<span class="number">0</span>.event.timestamp));
-
-    <span class="kw">for </span>(entry_hash, private_event_entry) <span class="kw">in </span>ordered_their_private_event_entries {
+    <span class="kw">for </span>private_event_entry <span class="kw">in </span>ordered_their_private_event_entries {
+        <span class="kw">let </span>entry_hash = EntryHashB64::from(hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>);
         <span class="kw">if </span>my_private_event_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash) {
             <span class="comment">// We already have this message committed
-            </span><span class="kw">continue</span>;
+            </span>send_acknowledgement_for_event_to_recipient::&lt;T&gt;(<span class="kw-2">&amp;</span>entry_hash, <span class="kw-2">&amp;</span>provenance)<span class="question-mark">?</span>;
+            <span class="kw">continue</span>;
         }
 
-        <span class="kw">let </span>outcome =
-            validate_private_event_entry::&lt;T&gt;(entry_hash.clone().into(), <span class="kw-2">&amp;</span>private_event_entry);
+        <span class="kw">let </span>outcome = validate_private_event_entry::&lt;T&gt;(<span class="kw-2">&amp;</span>private_event_entry);
 
         <span class="kw">match </span>outcome {
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid) =&gt; {
@@ -572,19 +452,23 @@
                 <span class="macro">warn!</span>(
                     <span class="string">"Received a PrivateEvent {entry_hash} but we don't have all its dependencies: adding it to the awaiting dependencies queue."
                 </span>);
-                create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
-                    event: private_event_entry,
-                    unresolved_dependencies,
-                }))<span class="question-mark">?</span>;
+                create_relaxed(EntryTypes::AwaitingDependencies(
+                    AwaitingDependencies::Event {
+                        event: private_event_entry,
+                        unresolved_dependencies,
+                    },
+                ))<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                 <span class="macro">warn!</span>(
                     <span class="string">"Received a PrivateEvent {entry_hash} but its validation failed: adding it to the awaiting dependencies queue."
                 </span>);
-                create_relaxed(EntryTypes::AwaitingDependencies(AwaitingDependencies {
-                    event: private_event_entry,
-                    unresolved_dependencies: UnresolvedDependencies::Hashes(<span class="macro">vec!</span>[]),
-                }))<span class="question-mark">?</span>;
+                create_relaxed(EntryTypes::AwaitingDependencies(
+                    AwaitingDependencies::Event {
+                        event: private_event_entry,
+                        unresolved_dependencies: UnresolvedDependencies::Hashes(<span class="macro">vec!</span>[]),
+                    },
+                ))<span class="question-mark">?</span>;
             }
         }
     }
@@ -602,15 +486,15 @@
         private_event_entry: private_event_entry.clone(),
     })<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content.clone())
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
-    private_event.post_commit(
-        entry_hash.clone(),
-        private_event_entry.<span class="number">0</span>.author,
-        private_event_entry.<span class="number">0</span>.event.timestamp,
-    )<span class="question-mark">?</span>;
+    <span class="comment">// let private_event = T::try_from(private_event_entry.0.event.content.clone())
+    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
+    // private_event.post_commit(
+    //     entry_hash.clone(),
+    //     private_event_entry.0.author,
+    //     private_event_entry.0.event.timestamp,
+    // )?;
 
-    <span class="prelude-val">Ok</span>(entry_hash)
+    </span><span class="prelude-val">Ok</span>(entry_hash)
 }
 
 <span class="kw">pub fn </span>query_private_event_entries_by_type(
@@ -620,7 +504,7 @@
 
     <span class="kw">let </span>entries_of_this_type = all_entries
         .into_iter()
-        .filter(|(_hash, entry)| entry.<span class="number">0</span>.event.event_type.eq(event_type))
+        .filter(|(_hash, entry)| entry.<span class="number">0</span>.payload.content.event_type.eq(event_type))
         .collect();
     <span class="prelude-val">Ok</span>(entries_of_this_type)
 }
@@ -688,26 +572,6 @@
     <span class="prelude-val">Ok</span>(private_event_entries)
 }
 
-<span class="kw">pub fn </span>query_event_histories() -&gt; ExternResult&lt;Vec&lt;EventHistory&gt;&gt; {
-    <span class="kw">let </span>filter = ChainQueryFilter::new()
-        .entry_type(UnitEntryTypes::EventHistory.try_into()<span class="question-mark">?</span>)
-        .include_entries(<span class="bool-val">true</span>)
-        .action_type(ActionType::Create);
-    <span class="kw">let </span>records = query(filter)<span class="question-mark">?</span>;
-    <span class="kw">let </span>event_histories = records
-        .into_iter()
-        .map(|r| {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(entry) = r.entry().as_option().clone() <span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"PrivateEvents record contained no entry."</span>));
-            };
-            <span class="kw">let </span>entry = EventHistory::try_from(entry)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(entry)
-        })
-        .collect::&lt;ExternResult&lt;Vec&lt;EventHistory&gt;&gt;&gt;()<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(event_histories)
-}
-
 <span class="kw">pub fn </span>query_private_event_entry(event_hash: EntryHash) -&gt; ExternResult&lt;<span class="prelude-ty">Option</span>&lt;PrivateEventEntry&gt;&gt; {
     <span class="kw">let </span><span class="prelude-val">Some</span>(record) = get(event_hash, GetOptions::local())<span class="question-mark">? </span><span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
@@ -722,16 +586,18 @@
 
 <span class="kw">pub fn </span>private_event_entry_to_signed_event&lt;T: PrivateEvent&gt;(
     private_event_entry: PrivateEventEntry,
-) -&gt; ExternResult&lt;SignedEvent&lt;T&gt;&gt; {
-    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.event.content)
-        .map_err(|err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(SignedEvent {
+) -&gt; ExternResult&lt;SignedEntry&lt;PrivateEventContent&lt;T&gt;&gt;&gt; {
+    <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event)
+        .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event."</span>))<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(SignedEntry {
         author: private_event_entry.<span class="number">0</span>.author,
         signature: private_event_entry.<span class="number">0</span>.signature,
-        event: SignedContent {
-            event_type: private_event_entry.<span class="number">0</span>.event.event_type,
-            timestamp: private_event_entry.<span class="number">0</span>.event.timestamp,
-            content: private_event,
+        payload: SignedContent {
+            timestamp: private_event_entry.<span class="number">0</span>.payload.timestamp,
+            content: PrivateEventContent {
+                event_type: private_event_entry.<span class="number">0</span>.payload.content.event_type,
+                event: private_event,
+            },
         },
     })
 }

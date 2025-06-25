@@ -28,16 +28,22 @@
 <a href="#27" id="27">27</a>
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdi::prelude::<span class="kw-2">*</span>;
 
-<span class="kw">use </span><span class="kw">crate</span>::PrivateEventEntry;
+<span class="kw">use crate</span>::{Acknowledgement, AwaitingDependencies, EventSentToRecipients, PrivateEventEntry};
 
 <span class="attr">#[hdk_entry_helper]
 #[derive(Clone)]
 </span><span class="kw">pub struct </span>EventHistory {
+    <span class="kw">pub </span>awaiting_deps: Vec&lt;AwaitingDependencies&gt;,
     <span class="kw">pub </span>events: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
+    <span class="kw">pub </span>events_sent_to_recipients: Vec&lt;EventSentToRecipients&gt;,
+    <span class="kw">pub </span>acknowledgements: Vec&lt;Acknowledgement&gt;,
 }
 
 <span class="kw">pub fn </span>validate_create_event_history(

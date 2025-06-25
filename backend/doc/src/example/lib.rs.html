@@ -100,12 +100,7 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
-
-<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing::<span class="kw-2">*</span>;
 
 <span class="attr">#[private_event]
@@ -165,7 +160,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>friends: BTreeSet&lt;AgentPubKey&gt; = BTreeSet::new();
 
     <span class="kw">for </span>(_hash, private_event) <span class="kw">in </span>private_events {
-        <span class="kw">let </span>Event::NewFriend { friend } = private_event.event.content <span class="kw">else </span>{
+        <span class="kw">let </span>Event::NewFriend { friend } = private_event.payload.content.event <span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
         friends.insert(friend);
@@ -190,7 +185,7 @@
     <span class="kw">let </span>response = call(
         CallTargetCell::OtherCell(old_cell),
         zome_info()<span class="question-mark">?</span>.name,
-        <span class="string">"query_private_event_entries"</span>.into(),
+        <span class="string">"export_event_history"</span>.into(),
         <span class="prelude-val">None</span>,
         (),
     )<span class="question-mark">?</span>;
@@ -201,10 +196,9 @@
             response
         ));
     };
-    <span class="kw">let </span>private_event_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; =
-        result.decode().map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
+    <span class="kw">let </span>event_history: EventHistory = result.decode().map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?</span>;
 
-    import_events(private_event_entries)<span class="question-mark">?</span>;
+    import_event_history(event_history)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(())
 }
