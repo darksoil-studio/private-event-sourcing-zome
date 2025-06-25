@@ -27,6 +27,7 @@ pub use private_event_proc_macro::*;
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
     resend_events_if_necessary::<T>()?;
     attempt_commit_awaiting_deps_entries::<T>()?;
+    create_acknowledgements::<T>()?;
     Ok(())
 }
 
@@ -113,25 +114,25 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let result = call(
             CallTargetCell::Local,
             zome_info()?.name,
-            "create_acknowledgements".into(),
+            "send_new_events".into(),
             None,
             new_private_event_hashes.clone(),
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!("Error calling 'send_events': {:?}", result));
+        };
+        let result = call(
+            CallTargetCell::Local,
+            zome_info()?.name,
+            "create_acknowledgements".into(),
+            None,
+            (),
         )?;
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!(
                 "Error calling 'create_acknowledgements': {:?}",
                 result
             ));
-        };
-        let result = call(
-            CallTargetCell::Local,
-            zome_info()?.name,
-            "send_new_events".into(),
-            None,
-            new_private_event_hashes,
-        )?;
-        let ZomeCallResponse::Ok(_) = result else {
-            return Err(wasm_error!("Error calling 'send_events': {:?}", result));
         };
         let result = call(
             CallTargetCell::Local,

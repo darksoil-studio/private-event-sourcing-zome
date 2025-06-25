@@ -153,6 +153,12 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             error!("Could not find private event entry: {}.", event_hash);
             continue;
         };
+
+        if private_event_entry.0.author.ne(&my_pub_key) {
+            // We don't need to directly send to all recipients another author's event
+            continue;
+        };
+
         let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
             .map_err(|_err| wasm_error!("Failed to deserialize private event"))?;
 

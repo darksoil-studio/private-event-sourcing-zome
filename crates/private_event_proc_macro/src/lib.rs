@@ -50,8 +50,8 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn create_acknowledgements(events_hashes: BTreeSet<EntryHashB64>) -> ExternResult<()> {
-            private_event_sourcing::create_acknowledgements::<#ident>(events_hashes)
+        pub fn create_acknowledgements() -> ExternResult<()> {
+            private_event_sourcing::create_acknowledgements::<#ident>()
         }
 
         #[hdk_extern(infallible)]
