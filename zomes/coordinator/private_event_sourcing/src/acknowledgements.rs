@@ -111,20 +111,22 @@ pub fn create_acknowledgement<T: PrivateEvent>(event_hash: EntryHashB64) -> Exte
         events_sent_to_recipients: vec![],
     };
 
-    info!(
-        "Sending acknowledgement for {} to {:?}.",
-        event_hash, recipients
-    );
+    if recipients.len() > 0 {
+        info!(
+            "Sending acknowledgement for entry {} to {:?}.",
+            event_hash, recipients
+        );
 
-    send_remote_signal(
-        SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
-            message.clone(),
-        ))
-        .map_err(|err| wasm_error!(err))?,
-        recipients.clone().into_iter().collect(),
-    )?;
+        send_remote_signal(
+            SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                message.clone(),
+            ))
+            .map_err(|err| wasm_error!(err))?,
+            recipients.clone().into_iter().collect(),
+        )?;
 
-    send_async_message(recipients, message)?;
+        send_async_message(recipients, message)?;
+    }
 
     Ok(())
 }
@@ -156,10 +158,8 @@ pub fn receive_acknowledgements<T: PrivateEvent>(
 
         if current_events.contains_key(&EntryHashB64::from(event_hash.clone())) {
             info!(
-                "Received acknowledgement for entry {} from agent {}. {}",
-                event_hash,
-                provenance,
-                agent_info()?.agent_initial_pubkey
+                "Received acknowledgement for entry {} from agent {}.",
+                event_hash, provenance,
             );
             create_relaxed(EntryTypes::Acknowledgement(acknowledgement))?;
         } else {
