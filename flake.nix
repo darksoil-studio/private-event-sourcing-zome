@@ -32,6 +32,8 @@
       imports = [
         ./zomes/integrity/example/zome.nix
         ./zomes/coordinator/example/zome.nix
+        ./zomes/integrity/encrypted_links/zome.nix
+        ./zomes/coordinator/encrypted_links/zome.nix
         # Just for testing purposes
         ./workdir/dna.nix
         ./workdir/happ.nix
@@ -46,7 +48,7 @@
           ];
 
           packages = [
-            inputs'.holochain-nix-builders.packages.holochain
+            inputs'.holochain-nix-builders.packages.custom-holochain
             inputs'.scaffolding.packages.hc-scaffold-zome
             inputs'.playground.packages.hc-playground
           ];

@@ -17,7 +17,7 @@ import { PrivateEventSourcingClient } from '../../ui/src/private-event-sourcing-
 import { PrivateEventSourcingStore } from '../../ui/src/private-event-sourcing-store.js';
 import { setup, testHappUrl, waitUntil } from './setup.js';
 
-test('create a shared entry gets to each source chain', async () => {
+test('migration of entries works', async () => {
 	await runScenario(async scenario => {
 		const [alice, bob] = await setup(scenario);
 

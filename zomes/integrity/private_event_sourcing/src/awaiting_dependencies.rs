@@ -1,12 +1,21 @@
 use hdi::prelude::*;
+use private_event_sourcing_types::EventSentToRecipients;
 
-use crate::PrivateEventEntry;
+use crate::{Acknowledgement, PrivateEventEntry};
 
 #[hdk_entry_helper]
 #[derive(Clone)]
-pub struct AwaitingDependencies {
-    pub event: PrivateEventEntry,
-    pub unresolved_dependencies: UnresolvedDependencies,
+pub enum AwaitingDependencies {
+    Event {
+        event: PrivateEventEntry,
+        unresolved_dependencies: UnresolvedDependencies,
+    },
+    Acknowledgement {
+        acknowledgement: Acknowledgement,
+    },
+    EventsSentToRecipients {
+        event_sent_to_recipients: EventSentToRecipients,
+    },
 }
 
 pub fn validate_create_awaiting_dependencies(

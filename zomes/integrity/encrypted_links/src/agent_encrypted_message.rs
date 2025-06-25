@@ -2,10 +2,7 @@ use hdi::prelude::*;
 
 #[hdk_entry_helper]
 #[derive(Clone)]
-pub struct EncryptedMessage {
-    pub encrypted_entries: Vec<XSalsa20Poly1305EncryptedData>,
-    pub entry_hashes: BTreeSet<EntryHashB64>,
-}
+pub struct EncryptedMessage(pub Vec<XSalsa20Poly1305EncryptedData>);
 
 pub fn validate_create_encrypted_message(
     _action: EntryCreationAction,

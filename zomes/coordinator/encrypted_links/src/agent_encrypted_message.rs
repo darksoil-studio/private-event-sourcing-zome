@@ -1,32 +1,12 @@
-use std::collections::BTreeMap;
-
+use encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 use hdk::prelude::*;
-use private_event_sourcing_integrity::{
-    EncryptedMessage, EntryTypes, LinkTypes, PrivateEventEntry,
-};
+use private_event_sourcing_types::Message;
 
-use crate::{
-    private_event::PrivateEvent,
-    receive_private_events,
-    utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
-};
+use crate::utils::{create_link_relaxed, create_relaxed, delete_link_relaxed};
 
-#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
-pub struct PlainPrivateEventEntries(pub BTreeMap<EntryHashB64, PrivateEventEntry>);
-
-pub fn create_encrypted_message(
-    recipient: AgentPubKey,
-    private_events_entries: BTreeMap<EntryHashB64, PrivateEventEntry>,
-) -> ExternResult<()> {
-    let entry_hashes: BTreeSet<EntryHashB64> = private_events_entries.keys().cloned().collect();
-    let entry_bytes = SerializedBytes::try_from(PlainPrivateEventEntries(private_events_entries))
-        .map_err(|err| wasm_error!(err))?;
-
-    let chunks: Vec<XSalsa20Poly1305Data> = entry_bytes
-        .bytes()
-        .chunks(2_000)
-        .map(|c| c.to_vec().into())
-        .collect();
+pub fn create_encrypted_message(recipient: AgentPubKey, message: Vec<u8>) -> ExternResult<()> {
+    let chunks: Vec<XSalsa20Poly1305Data> =
+        message.chunks(2_000).map(|c| c.to_vec().into()).collect();
     let encrypted_entries = chunks
         .into_iter()
         .map(|chunk| {
@@ -38,10 +18,7 @@ pub fn create_encrypted_message(
         })
         .collect::<ExternResult<Vec<XSalsa20Poly1305EncryptedData>>>()?;
 
-    let entry = EncryptedMessage {
-        encrypted_entries,
-        entry_hashes,
-    };
+    let entry = EncryptedMessage(encrypted_entries);
     let bytes = SerializedBytes::try_from(entry.clone()).map_err(|err| wasm_error!(err))?;
 
     if bytes.bytes().len() > 900 {
@@ -99,9 +76,11 @@ pub fn get_message(agent_encrypted_message_link: &Link) -> ExternResult<Option<E
     }
 }
 
-pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<()> {
+pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Message)>> {
     let my_pub_key = agent_info()?.agent_initial_pubkey;
     let links = get_agent_encrypted_messages(my_pub_key.clone())?;
+
+    let mut messages: Vec<(AgentPubKey, Message)> = vec![];
 
     for link in links {
         debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage link.");
@@ -111,7 +90,7 @@ pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<(
         debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage.");
 
         let decrypted_data = message
-            .encrypted_entries
+            .0
             .into_iter()
             .map(|chunk| {
                 ed_25519_x_salsa20_poly1305_decrypt(my_pub_key.clone(), link.author.clone(), chunk)
@@ -125,16 +104,12 @@ pub fn commit_my_pending_encrypted_messages<T: PrivateEvent>() -> ExternResult<(
             .collect();
         let decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
-        if let Ok(private_events_entries) =
-            PlainPrivateEventEntries::try_from(decrypted_serialized_bytes)
-        {
-            if let Err(err) = receive_private_events::<T>(link.author, private_events_entries.0) {
-                error!("Failed to receive private event from an encrypted message: {err:?}.")
-            }
+        if let Ok(message) = Message::try_from(decrypted_serialized_bytes) {
+            messages.push((link.author, message));
         }
 
         delete_link_relaxed(link.create_link_hash)?;
     }
 
-    Ok(())
+    Ok(messages)
 }

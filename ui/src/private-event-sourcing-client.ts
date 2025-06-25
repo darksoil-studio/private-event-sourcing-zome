@@ -1,7 +1,12 @@
 import { ZomeClient } from '@darksoil-studio/holochain-utils';
 import { AgentPubKey, AppClient, EntryHashB64 } from '@holochain/client';
 
-import { PrivateEventEntry, PrivateEventSourcingSignal } from './types.js';
+import {
+	Acknowledgement,
+	EventSentToRecipients,
+	PrivateEventEntry,
+	PrivateEventSourcingSignal,
+} from './types.js';
 
 export class PrivateEventSourcingClient<ADDITIONAL_SIGNALS> extends ZomeClient<
 	PrivateEventSourcingSignal | ADDITIONAL_SIGNALS
@@ -18,8 +23,12 @@ export class PrivateEventSourcingClient<ADDITIONAL_SIGNALS> extends ZomeClient<
 		return this.callZome('query_private_event_entries', undefined);
 	}
 
-	async commitMyPendingEncryptedMessages(): Promise<void> {
-		return this.callZome('commit_my_pending_encrypted_messages', undefined);
+	queryEventsSentToRecipientsEntries(): Promise<Array<EventSentToRecipients>> {
+		return this.callZome('query_events_sent_to_recipients_entries', undefined);
+	}
+
+	queryAcknowledgementEntries(): Promise<Array<Acknowledgement>> {
+		return this.callZome('query_acknowledgement_entries', undefined);
 	}
 
 	synchronizeWithLinkedDevice(linkedDevice: AgentPubKey) {

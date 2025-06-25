@@ -2,12 +2,15 @@ use std::collections::BTreeMap;
 
 use hdi::prelude::*;
 
-use crate::PrivateEventEntry;
+use crate::{Acknowledgement, AwaitingDependencies, EventSentToRecipients, PrivateEventEntry};
 
 #[hdk_entry_helper]
 #[derive(Clone)]
 pub struct EventHistory {
+    pub awaiting_deps: Vec<AwaitingDependencies>,
     pub events: BTreeMap<EntryHashB64, PrivateEventEntry>,
+    pub events_sent_to_recipients: Vec<EventSentToRecipients>,
+    pub acknowledgements: Vec<Acknowledgement>,
 }
 
 pub fn validate_create_event_history(

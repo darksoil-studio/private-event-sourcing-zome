@@ -9,6 +9,11 @@ integrity:
     bundled: ../target/wasm32-unknown-unknown/release/example_integrity.wasm
     dependencies: null
     dylib: null
+  - name: encrypted_links_integrity
+    hash: null
+    bundled: ../target/wasm32-unknown-unknown/release/encrypted_links_integrity.wasm
+    dependencies: null
+    dylib: null
   - name: linked_devices_integrity
     hash: null
     bundled: <NIX_PACKAGE>
@@ -21,6 +26,12 @@ coordinator:
     bundled: ../target/wasm32-unknown-unknown/release/example.wasm
     dependencies:
     - name: example_integrity
+    dylib: null
+  - name: encrypted_links
+    hash: null
+    bundled: ../target/wasm32-unknown-unknown/release/encrypted_links.wasm
+    dependencies:
+    - name: encrypted_links_integrity
     dylib: null
   - name: linked_devices
     hash: null
