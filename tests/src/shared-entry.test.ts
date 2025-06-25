@@ -28,7 +28,7 @@ test('create a shared entry gets to each source chain', async () => {
 		let eventsSent = await toPromise(alice.store.eventsSentToRecipients);
 		assert.equal(Object.keys(eventsSent).length, 1);
 
-		await pause(2000);
+		await pause(1000);
 
 		privateEvents = await toPromise(bob.store.privateEvents);
 		assert.equal(Object.keys(privateEvents).length, 1);

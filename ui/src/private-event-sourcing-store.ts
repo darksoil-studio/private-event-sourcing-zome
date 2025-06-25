@@ -48,7 +48,10 @@ export class PrivateEventSourcingStore<E> {
 					entries[encodeHashToBase64(signal.event_hash)] =
 						signal.private_event_entry;
 					set(entries);
-				} else if (signal.type === 'EntryCreated') {
+				} else if (
+					signal.type === 'EntryCreated' &&
+					signal.app_entry.type === 'PrivateEvent'
+				) {
 					entries[encodeHashToBase64(signal.action.hashed.content.entry_hash)] =
 						signal.app_entry as PrivateEventEntry;
 					set(entries);

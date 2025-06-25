@@ -35,8 +35,13 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn send_events() -> ExternResult<()> {
-            private_event_sourcing::send_events::<#ident>()
+        pub fn resend_events_if_necessary() -> ExternResult<()> {
+            private_event_sourcing::resend_events_if_necessary::<#ident>()
+        }
+
+        #[hdk_extern]
+        pub fn send_new_events(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
+            private_event_sourcing::send_new_events::<#ident>(events_hashes)
         }
 
         #[hdk_extern]
@@ -45,8 +50,8 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn create_acknowledgements(events_hashes: BTreeSet<EntryHashB64>) -> ExternResult<()> {
-            private_event_sourcing::create_acknowledgements::<#ident>(events_hashes)
+        pub fn create_acknowledgements() -> ExternResult<()> {
+            private_event_sourcing::create_acknowledgements::<#ident>()
         }
 
         #[hdk_extern(infallible)]
@@ -55,7 +60,7 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
                 error!("Failed to perform scheduled tasks: {err:?}");
             }
 
-            Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
+            Some(Schedule::Persisted("*/55 * * * * * *".into())) // Every 55 seconds
         }
     };
     output.into()
