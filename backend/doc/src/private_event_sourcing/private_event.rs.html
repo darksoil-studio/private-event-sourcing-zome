@@ -296,20 +296,7 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{PrivateEventContent, <span class="kw-2">*</span>};
 <span class="kw">use </span>serde::de::DeserializeOwned;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -360,9 +347,9 @@
     })<span class="question-mark">?</span>;
     <span class="kw">let </span>author = signed.author.clone();
     <span class="kw">let </span>timestamp = signed.payload.timestamp.clone();
-    <span class="kw">let </span>entry = PrivateEventEntry(signed);
+    <span class="kw">let </span>private_event_entry = PrivateEventEntry(signed);
 
-    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>entry)<span class="question-mark">?</span>;
+    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
     <span class="kw">let </span>validation_outcome = private_event.validate(entry_hash, author, timestamp)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>validation_outcome {
@@ -376,7 +363,15 @@
         </span>))<span class="question-mark">?</span>,
     };
 
-    internal_create_private_event::&lt;T&gt;(entry)
+    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
+    <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+    create_relaxed(app_entry)<span class="question-mark">?</span>;
+    emit_signal(Signal::NewPrivateEvent {
+        event_hash: entry_hash.clone(),
+        private_event_entry: private_event_entry.clone(),
+    })<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(entry_hash)
 }
 
 <span class="kw">pub fn </span>validate_private_event_entry&lt;T: PrivateEvent&gt;(
@@ -438,7 +433,8 @@
         <span class="kw">match </span>outcome {
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid) =&gt; {
                 <span class="macro">info!</span>(<span class="string">"Received a PrivateEvent {entry_hash}."</span>);
-                internal_create_private_event::&lt;T&gt;(private_event_entry)<span class="question-mark">?</span>;
+                <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+                create_relaxed(app_entry)<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(reason)) =&gt; {
                 <span class="macro">warn!</span>(<span class="string">"Received an invalid PrivateEvent {entry_hash}: discarding."</span>);
@@ -473,28 +469,6 @@
         }
     }
     <span class="prelude-val">Ok</span>(())
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>internal_create_private_event&lt;T: PrivateEvent&gt;(
-    private_event_entry: PrivateEventEntry,
-) -&gt; ExternResult&lt;EntryHash&gt; {
-    <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
-    <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
-    create_relaxed(app_entry)<span class="question-mark">?</span>;
-    emit_signal(Signal::NewPrivateEvent {
-        event_hash: entry_hash.clone(),
-        private_event_entry: private_event_entry.clone(),
-    })<span class="question-mark">?</span>;
-
-    <span class="comment">// let private_event = T::try_from(private_event_entry.0.event.content.clone())
-    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    // private_event.post_commit(
-    //     entry_hash.clone(),
-    //     private_event_entry.0.author,
-    //     private_event_entry.0.event.timestamp,
-    // )?;
-
-    </span><span class="prelude-val">Ok</span>(entry_hash)
 }
 
 <span class="kw">pub fn </span>query_private_event_entries_by_type(

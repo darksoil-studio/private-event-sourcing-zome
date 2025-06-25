@@ -154,15 +154,13 @@
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 
 <span class="kw">use crate</span>::{
     acknowledgements::query_acknowledgement_entries,
-    events_sent_to_recipients::query_events_sent_to_recipients_entries,
-    internal_create_private_event, query_event_histories, query_private_event_entries,
-    utils::create_relaxed, validate_private_event_entry, PrivateEvent,
+    events_sent_to_recipients::query_events_sent_to_recipients_entries, query_event_histories,
+    query_private_event_entries, utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
 <span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
@@ -179,7 +177,7 @@
 
             <span class="kw">match </span>valid {
                 ValidateCallbackResult::Valid =&gt; {
-                    internal_create_private_event::&lt;T&gt;(private_event_entry)<span class="question-mark">?</span>;
+                    create_relaxed(EntryTypes::PrivateEvent(private_event_entry))<span class="question-mark">?</span>;
                 }
                 ValidateCallbackResult::Invalid(reason) =&gt; {
                     <span class="macro">error!</span>(<span class="string">"Invalid awaiting dependencies entry: {reason}"</span>);
