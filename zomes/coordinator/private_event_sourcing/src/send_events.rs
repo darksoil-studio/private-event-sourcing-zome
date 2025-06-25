@@ -9,14 +9,14 @@ use crate::{
         query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
     },
     query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
-    send_async_message,
+    query_private_event_entry, send_async_message,
     utils::create_relaxed,
     PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
 const INTERVAL_RESEND_MS: i64 = 1000 * 60 * 60 * 24 * 1000; // 1000 days
 
-pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
+pub fn resend_events_if_necessary<T: PrivateEvent>() -> ExternResult<()> {
     debug!("[send_events] Sending events to linked devices and recipients if necessary.");
 
     let entries = query_private_event_entries(())?;
@@ -133,6 +133,80 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
             )?;
 
             if let Ok(()) = send_async_message(recipients_to_send.clone(), message) {
+                create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
+    info!("[send_events] Sending new events: {:?}.", event_hashes);
+
+    let my_linked_devices = query_my_linked_devices()?;
+
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
+
+    for event_hash in event_hashes {
+        let Some(private_event_entry) = query_private_event_entry(event_hash.clone())? else {
+            error!("Could not find private event entry: {}.", event_hash);
+            continue;
+        };
+
+        if private_event_entry.0.author.ne(&my_pub_key) {
+            // We don't need to directly send to all recipients another author's event
+            continue;
+        };
+
+        let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
+            .map_err(|_err| wasm_error!("Failed to deserialize private event"))?;
+
+        // For each event, get the recipients
+        let recipients_result = private_event.recipients(
+            event_hash.clone().into(),
+            private_event_entry.0.author.clone(),
+            private_event_entry.0.payload.timestamp,
+        );
+        let Ok(mut recipients) = recipients_result else {
+            warn!("Error calling PrivateEvent::recipients()");
+            continue;
+        };
+        recipients.append(&mut my_linked_devices.clone());
+
+        let recipients: BTreeSet<AgentPubKey> = recipients
+            .into_iter()
+            .filter(|recipient| my_pub_key.ne(recipient)) // Filter me out
+            .collect();
+
+        if !recipients.is_empty() {
+            info!(
+                "Sending private event entry {} to recipients: {:?}.",
+                event_hash, recipients
+            );
+
+            let content = EventSentToRecipientsContent {
+                event_hash: event_hash.clone().into(),
+                recipients: recipients.clone(),
+            };
+            let signed = SignedEntry::build(content)?;
+            let event_sent_to_recipients = EventSentToRecipients(signed);
+
+            let message = Message {
+                private_events: vec![private_event_entry],
+                events_sent_to_recipients: vec![event_sent_to_recipients.clone()],
+                acknowledgements: vec![],
+            };
+
+            send_remote_signal(
+                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                    message.clone(),
+                ))
+                .map_err(|err| wasm_error!(err))?,
+                recipients.clone().into_iter().collect(),
+            )?;
+
+            if let Ok(()) = send_async_message(recipients.clone(), message) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
             }
         }
