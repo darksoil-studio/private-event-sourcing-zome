@@ -82,7 +82,7 @@ export class PrivateEventSourcingStore<E> {
 	private eventsSentToRecipientsEntries = asyncReadable<
 		Array<EventSentToRecipients>
 	>(async set => {
-		let eventsSentToRecipients =
+		const eventsSentToRecipients =
 			await this.client.queryEventsSentToRecipientsEntries();
 		set(eventsSentToRecipients);
 
@@ -131,7 +131,7 @@ export class PrivateEventSourcingStore<E> {
 
 	private acknowledgementEntries = asyncReadable<Array<Acknowledgement>>(
 		async set => {
-			let acknowledgements = await this.client.queryAcknowledgementEntries();
+			const acknowledgements = await this.client.queryAcknowledgementEntries();
 			set(acknowledgements);
 
 			return this.client.onSignal(signal => {
