@@ -37,6 +37,7 @@
         # Just for testing purposes
         ./workdir/dna.nix
         ./workdir/happ.nix
+        inputs.holochain-nix-builders.outputs.flakeModules.builders
       ];
 
       systems = builtins.attrNames inputs.holonix.devShells;
