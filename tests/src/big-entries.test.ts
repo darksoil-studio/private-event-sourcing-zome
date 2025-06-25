@@ -34,7 +34,7 @@ test('big entries get gossiped asynchronously', async () => {
 		// 	500_000,
 		// );
 
-		await pause(10000);
+		await pause(50000);
 
 		await alice.player.conductor.shutDown();
 

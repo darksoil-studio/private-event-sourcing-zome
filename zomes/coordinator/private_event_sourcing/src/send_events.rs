@@ -79,8 +79,8 @@ pub fn send_events<T: PrivateEvent>() -> ExternResult<()> {
 
         if !recipients_to_send.is_empty() {
             info!(
-                "Sending private events entry to recipients: {:?}.",
-                recipients_to_send
+                "Sending private event entry {} to recipients: {:?}.",
+                event_hash, recipients_to_send
             );
 
             let content = EventSentToRecipientsContent {
