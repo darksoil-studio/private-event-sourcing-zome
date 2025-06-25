@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use hdk::prelude::*;
 use private_event_sourcing::*;
 
@@ -60,7 +58,7 @@ pub fn query_friends() -> ExternResult<BTreeSet<AgentPubKey>> {
     let mut friends: BTreeSet<AgentPubKey> = BTreeSet::new();
 
     for (_hash, private_event) in private_events {
-        let Event::NewFriend { friend } = private_event.event.content else {
+        let Event::NewFriend { friend } = private_event.payload.content.event else {
             continue;
         };
         friends.insert(friend);
@@ -85,7 +83,7 @@ pub fn migrate_from_old_cell(old_cell: CellId) -> ExternResult<()> {
     let response = call(
         CallTargetCell::OtherCell(old_cell),
         zome_info()?.name,
-        "query_private_event_entries".into(),
+        "export_event_history".into(),
         None,
         (),
     )?;
@@ -96,10 +94,9 @@ pub fn migrate_from_old_cell(old_cell: CellId) -> ExternResult<()> {
             response
         ));
     };
-    let private_event_entries: BTreeMap<EntryHashB64, PrivateEventEntry> =
-        result.decode().map_err(|err| wasm_error!(err))?;
+    let event_history: EventHistory = result.decode().map_err(|err| wasm_error!(err))?;
 
-    import_events(private_event_entries)?;
+    import_event_history(event_history)?;
 
     Ok(())
 }

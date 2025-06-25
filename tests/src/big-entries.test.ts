@@ -1,8 +1,9 @@
 import { toPromise } from '@darksoil-studio/holochain-signals';
-import { dhtSync, pause, runScenario } from '@holochain/tryorama';
+import { pause, runScenario } from '@holochain/tryorama';
 import { assert, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
+import { dhtSync } from './sync.js';
 
 test('big entries get gossiped asynchronously', async () => {
 	await runScenario(async scenario => {
@@ -26,12 +27,14 @@ test('big entries get gossiped asynchronously', async () => {
 		let privateEvents = await toPromise(alice.store.privateEvents);
 		assert.equal(Object.keys(privateEvents).length, 1);
 
-		await dhtSync(
-			[alice.player, carol.player],
-			alice.player.cells[0].cell_id[0],
-			500,
-			500_000,
-		);
+		// await dhtSync(
+		// 	[alice.player, carol.player],
+		// 	alice.player.cells[0].cell_id[0],
+		// 	500,
+		// 	500_000,
+		// );
+
+		await pause(50000);
 
 		await alice.player.conductor.shutDown();
 

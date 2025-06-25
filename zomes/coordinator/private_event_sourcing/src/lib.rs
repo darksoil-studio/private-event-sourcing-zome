@@ -1,30 +1,31 @@
-use std::collections::BTreeMap;
-
 use hdk::prelude::*;
+pub use strum::IntoStaticStr;
+
+pub use acknowledgements::*;
 pub use private_event_sourcing_integrity::*;
 
-mod agent_encrypted_message;
-pub use agent_encrypted_message::{commit_my_pending_encrypted_messages, create_encrypted_message};
 mod awaiting_dependencies;
 pub use awaiting_dependencies::attempt_commit_awaiting_deps_entries;
+
 mod linked_devices;
 pub use linked_devices::*;
 mod private_event;
 pub use private_event::*;
+mod acknowledgements;
 mod event_history;
 mod utils;
 pub use event_history::*;
 mod send_events;
 pub use send_events::send_events;
+mod events_sent_to_recipients;
 
-use send_events::synchronize_all_entries;
-pub use strum::IntoStaticStr;
+mod async_message;
+pub use async_message::*;
 
 pub use private_event_proc_macro::*;
 
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
-    commit_my_pending_encrypted_messages::<T>()?;
-    synchronize_all_entries::<T>()?;
+    send_events::<T>()?;
     Ok(())
 }
 
@@ -48,15 +49,15 @@ pub fn init() -> ExternResult<InitCallbackResult> {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Signal {
-    LinkCreated {
-        action: SignedActionHashed,
-        link_type: LinkTypes,
-    },
-    LinkDeleted {
-        action: SignedActionHashed,
-        create_link_action: SignedActionHashed,
-        link_type: LinkTypes,
-    },
+    // LinkCreated {
+    //     action: SignedActionHashed,
+    //     link_type: LinkTypes,
+    // },
+    // LinkDeleted {
+    //     action: SignedActionHashed,
+    //     create_link_action: SignedActionHashed,
+    //     link_type: LinkTypes,
+    // },
     NewPrivateEvent {
         event_hash: EntryHash,
         private_event_entry: PrivateEventEntry,
@@ -78,8 +79,7 @@ pub enum Signal {
 
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
 pub enum PrivateEventSourcingRemoteSignal {
-    SendPrivateEvents(BTreeMap<EntryHashB64, PrivateEventEntry>),
-    // SynchronizeEntriesWithLinkedDevice(BTreeMap<EntryHashB64, PrivateEventEntry>),
+    SendMessage(Message),
 }
 
 pub fn recv_private_events_remote_signal<T: PrivateEvent>(
@@ -87,8 +87,8 @@ pub fn recv_private_events_remote_signal<T: PrivateEvent>(
 ) -> ExternResult<()> {
     let provenance = call_info()?.provenance;
     match signal {
-        PrivateEventSourcingRemoteSignal::SendPrivateEvents(private_event_entries) => {
-            receive_private_events::<T>(provenance, private_event_entries)
+        PrivateEventSourcingRemoteSignal::SendMessage(message) => {
+            receive_message::<T>(provenance, message)
         }
     }
 }
@@ -112,9 +112,22 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let result = call(
             CallTargetCell::Local,
             zome_info()?.name,
-            "send_events".into(),
+            "create_acknowledgements".into(),
             None,
             new_private_event_hashes,
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!(
+                "Error calling 'create_acknowledgements': {:?}",
+                result
+            ));
+        };
+        let result = call(
+            CallTargetCell::Local,
+            zome_info()?.name,
+            "send_events".into(),
+            None,
+            (),
         )?;
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!("Error calling 'send_events': {:?}", result));
@@ -151,41 +164,41 @@ pub fn post_commit(committed_actions: Vec<SignedActionHashed>) {
 }
 fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
     match action.hashed.content.clone() {
-        Action::CreateLink(create_link) => {
-            if let Ok(Some(link_type)) =
-                LinkTypes::from_type(create_link.zome_index, create_link.link_type)
-            {
-                emit_signal(Signal::LinkCreated {
-                    action: action.clone(),
-                    link_type,
-                })?;
-            }
-            Ok(())
-        }
-        Action::DeleteLink(delete_link) => {
-            let record = get(delete_link.link_add_address.clone(), GetOptions::default())?.ok_or(
-                wasm_error!(WasmErrorInner::Guest(
-                    "Failed to fetch CreateLink action".to_string()
-                )),
-            )?;
-            match record.action() {
-                Action::CreateLink(create_link) => {
-                    if let Ok(Some(link_type)) =
-                        LinkTypes::from_type(create_link.zome_index, create_link.link_type)
-                    {
-                        emit_signal(Signal::LinkDeleted {
-                            action,
-                            link_type,
-                            create_link_action: record.signed_action.clone(),
-                        })?;
-                    }
-                    Ok(())
-                }
-                _ => Err(wasm_error!(WasmErrorInner::Guest(
-                    "Create Link should exist".to_string()
-                ))),
-            }
-        }
+        // Action::CreateLink(create_link) => {
+        //     if let Ok(Some(link_type)) =
+        //         LinkTypes::from_type(create_link.zome_index, create_link.link_type)
+        //     {
+        //         emit_signal(Signal::LinkCreated {
+        //             action: action.clone(),
+        //             link_type,
+        //         })?;
+        //     }
+        //     Ok(())
+        // }
+        // Action::DeleteLink(delete_link) => {
+        //     let record = get(delete_link.link_add_address.clone(), GetOptions::default())?.ok_or(
+        //         wasm_error!(WasmErrorInner::Guest(
+        //             "Failed to fetch CreateLink action".to_string()
+        //         )),
+        //     )?;
+        //     match record.action() {
+        //         Action::CreateLink(create_link) => {
+        //             if let Ok(Some(link_type)) =
+        //                 LinkTypes::from_type(create_link.zome_index, create_link.link_type)
+        //             {
+        //                 emit_signal(Signal::LinkDeleted {
+        //                     action,
+        //                     link_type,
+        //                     create_link_action: record.signed_action.clone(),
+        //                 })?;
+        //             }
+        //             Ok(())
+        //         }
+        //         _ => Err(wasm_error!(WasmErrorInner::Guest(
+        //             "Create Link should exist".to_string()
+        //         ))),
+        //     }
+        // }
         Action::Create(create) => {
             if let Ok(Some(app_entry)) = get_entry_for_action(&action.hashed.hash) {
                 match app_entry.clone() {

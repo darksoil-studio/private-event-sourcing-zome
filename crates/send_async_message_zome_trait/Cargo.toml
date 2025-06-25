@@ -1,0 +1,10 @@
+[package]
+name = "send_async_message_zome_trait"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hc_zome_traits = { git = "https://github.com/holochain-open-dev/zome-traits", branch = "main" }
+
+hdk = { workspace = true }
+serde = { workspace = true }
