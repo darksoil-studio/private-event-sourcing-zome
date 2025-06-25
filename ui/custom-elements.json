@@ -4,6 +4,62 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "locales/locales.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "sourceLocale",
+          "default": "`en`",
+          "description": "The locale code that templates in this source code are written in."
+        },
+        {
+          "kind": "variable",
+          "name": "targetLocales",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ , ]",
+          "description": "The other locale codes that this application is localized into. Sorted\nlexicographically."
+        },
+        {
+          "kind": "variable",
+          "name": "allLocales",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ `en`, ]",
+          "description": "All valid project locale codes. Sorted lexicographically."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "sourceLocale",
+          "declaration": {
+            "name": "sourceLocale",
+            "module": "locales/locales.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "targetLocales",
+          "declaration": {
+            "name": "targetLocales",
+            "module": "locales/locales.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "allLocales",
+          "declaration": {
+            "name": "allLocales",
+            "module": "locales/locales.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/index.ts",
       "declarations": [],
       "exports": [
@@ -78,10 +134,19 @@
             },
             {
               "kind": "method",
-              "name": "commitMyPendingEncryptedMessages",
+              "name": "queryEventsSentToRecipientsEntries",
               "return": {
                 "type": {
-                  "text": "Promise<void>"
+                  "text": "Promise<Array<EventSentToRecipients>>"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "queryAcknowledgementEntries",
+              "return": {
+                "type": {
+                  "text": "Promise<Array<Acknowledgement>>"
                 }
               }
             },
@@ -131,7 +196,25 @@
             {
               "kind": "field",
               "name": "privateEvents",
-              "default": "new AsyncComputed(() => { const privateEventEntries = this.privateEventEntries.get(); if (privateEventEntries.status !== 'completed') return privateEventEntries; const privateEvents: Record<EntryHashB64, SignedEvent<E>> = {}; for (const [entryHash, privateEventEntry] of Object.entries( privateEventEntries.value, )) { privateEvents[entryHash] = { ...privateEventEntry, event: { timestamp: privateEventEntry.event.timestamp, content: decode(privateEventEntry.event.content) as E, }, }; } return { status: 'completed', value: privateEvents, }; })"
+              "default": "new AsyncComputed(() => { const privateEventEntries = this.privateEventEntries.get(); if (privateEventEntries.status !== 'completed') return privateEventEntries; const privateEvents: Record<EntryHashB64, SignedEvent<E>> = {}; for (const [entryHash, privateEventEntry] of Object.entries( privateEventEntries.value, )) { privateEvents[entryHash] = { ...privateEventEntry, payload: { timestamp: privateEventEntry.payload.timestamp, content: { event_type: privateEventEntry.payload.content.event_type, event: decode(privateEventEntry.payload.content.event) as E, }, }, }; } return { status: 'completed', value: privateEvents, }; })"
+            },
+            {
+              "kind": "field",
+              "name": "eventsSentToRecipientsEntries",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "eventsSentToRecipients"
+            },
+            {
+              "kind": "field",
+              "name": "acknowledgementEntries",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "acknowledgements"
             }
           ]
         }
@@ -177,62 +260,6 @@
           "declaration": {
             "name": "asyncReadable",
             "module": "src/utils.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "locales/locales.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "sourceLocale",
-          "default": "`en`",
-          "description": "The locale code that templates in this source code are written in."
-        },
-        {
-          "kind": "variable",
-          "name": "targetLocales",
-          "type": {
-            "text": "array"
-          },
-          "default": "[ , ]",
-          "description": "The other locale codes that this application is localized into. Sorted\nlexicographically."
-        },
-        {
-          "kind": "variable",
-          "name": "allLocales",
-          "type": {
-            "text": "array"
-          },
-          "default": "[ `en`, ]",
-          "description": "All valid project locale codes. Sorted lexicographically."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "sourceLocale",
-          "declaration": {
-            "name": "sourceLocale",
-            "module": "locales/locales.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "targetLocales",
-          "declaration": {
-            "name": "targetLocales",
-            "module": "locales/locales.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "allLocales",
-          "declaration": {
-            "name": "allLocales",
-            "module": "locales/locales.js"
           }
         }
       ]
