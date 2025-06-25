@@ -49,9 +49,9 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
     })?;
     let author = signed.author.clone();
     let timestamp = signed.payload.timestamp.clone();
-    let entry = PrivateEventEntry(signed);
+    let private_event_entry = PrivateEventEntry(signed);
 
-    let entry_hash = hash_entry(&entry)?;
+    let entry_hash = hash_entry(&private_event_entry)?;
     let validation_outcome = private_event.validate(entry_hash, author, timestamp)?;
 
     match validation_outcome {
@@ -65,7 +65,15 @@ pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<E
         ))?,
     };
 
-    internal_create_private_event::<T>(entry)
+    let entry_hash = hash_entry(&private_event_entry)?;
+    let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+    create_relaxed(app_entry)?;
+    emit_signal(Signal::NewPrivateEvent {
+        event_hash: entry_hash.clone(),
+        private_event_entry: private_event_entry.clone(),
+    })?;
+
+    Ok(entry_hash)
 }
 
 pub fn validate_private_event_entry<T: PrivateEvent>(
@@ -127,7 +135,8 @@ pub fn receive_private_events<T: PrivateEvent>(
         match outcome {
             Ok(ValidateCallbackResult::Valid) => {
                 info!("Received a PrivateEvent {entry_hash}.");
-                internal_create_private_event::<T>(private_event_entry)?;
+                let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
+                create_relaxed(app_entry)?;
             }
             Ok(ValidateCallbackResult::Invalid(reason)) => {
                 warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
@@ -162,28 +171,6 @@ pub fn receive_private_events<T: PrivateEvent>(
         }
     }
     Ok(())
-}
-
-pub(crate) fn internal_create_private_event<T: PrivateEvent>(
-    private_event_entry: PrivateEventEntry,
-) -> ExternResult<EntryHash> {
-    let entry_hash = hash_entry(&private_event_entry)?;
-    let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
-    create_relaxed(app_entry)?;
-    emit_signal(Signal::NewPrivateEvent {
-        event_hash: entry_hash.clone(),
-        private_event_entry: private_event_entry.clone(),
-    })?;
-
-    // let private_event = T::try_from(private_event_entry.0.event.content.clone())
-    //     .map_err(|err| wasm_error!("Failed to deserialize private event."))?;
-    // private_event.post_commit(
-    //     entry_hash.clone(),
-    //     private_event_entry.0.author,
-    //     private_event_entry.0.event.timestamp,
-    // )?;
-
-    Ok(entry_hash)
 }
 
 pub fn query_private_event_entries_by_type(
