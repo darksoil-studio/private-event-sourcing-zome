@@ -16,7 +16,7 @@ mod event_history;
 mod utils;
 pub use event_history::*;
 mod send_events;
-pub use send_events::send_events;
+pub use send_events::{resend_events_if_necessary, send_new_events};
 mod events_sent_to_recipients;
 
 mod async_message;
@@ -25,7 +25,8 @@ pub use async_message::*;
 pub use private_event_proc_macro::*;
 
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
-    send_events::<T>()?;
+    resend_events_if_necessary::<T>()?;
+    attempt_commit_awaiting_deps_entries::<T>()?;
     Ok(())
 }
 
@@ -114,7 +115,7 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
             zome_info()?.name,
             "create_acknowledgements".into(),
             None,
-            new_private_event_hashes,
+            new_private_event_hashes.clone(),
         )?;
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!(
@@ -125,9 +126,9 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let result = call(
             CallTargetCell::Local,
             zome_info()?.name,
-            "send_events".into(),
+            "send_new_events".into(),
             None,
-            (),
+            new_private_event_hashes,
         )?;
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!("Error calling 'send_events': {:?}", result));
@@ -144,6 +145,16 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
                 "Error calling 'attempt_commit_awaiting_deps_entries': {:?}",
                 result
             ));
+        };
+        let result = call(
+            CallTargetCell::Local,
+            zome_info()?.name,
+            "resend_events_if_necessary".into(),
+            None,
+            (),
+        )?;
+        let ZomeCallResponse::Ok(_) = result else {
+            return Err(wasm_error!("Error calling 'send_events': {:?}", result));
         };
     }
 
