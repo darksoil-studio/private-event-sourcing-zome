@@ -10,6 +10,7 @@ name = "encrypted_links"
 [dependencies]
 hdk = { workspace = true }
 
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 
 encrypted_links_integrity = { path = "../../integrity/encrypted_links" }
