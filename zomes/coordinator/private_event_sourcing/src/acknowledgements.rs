@@ -4,8 +4,8 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    query_event_histories, query_private_event_entries, query_private_event_entry,
-    send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
+    query_event_histories, query_private_event_entries, send_async_message, utils::create_relaxed,
+    PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
 pub fn create_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
