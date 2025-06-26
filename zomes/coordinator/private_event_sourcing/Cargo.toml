@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 hdk = { workspace = true }
 
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 
 send_async_message_zome_trait = { path = "../../../crates/send_async_message_zome_trait" }

@@ -10,6 +10,7 @@ name = "private_event_sourcing_integrity"
 [dependencies]
 hdi = { workspace = true }
 
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 
 private_event_sourcing_types = { path = "../../../crates/private_event_sourcing_types" }
