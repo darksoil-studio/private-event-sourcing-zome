@@ -10,13 +10,27 @@ mod utils;
 
 pub struct EncryptedMessagesInLinks;
 
+#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
+pub struct MessageWithZomeName {
+    pub zome_name: ZomeName,
+    pub message: Vec<u8>,
+}
+
 #[implement_zome_trait_as_externs]
 impl SendAsyncMessage for EncryptedMessagesInLinks {
     fn send_async_message(
         input: send_async_message_zome_trait::SendAsyncMessageInput,
     ) -> ExternResult<()> {
+        let message = MessageWithZomeName {
+            zome_name: input.zome_name,
+            message: input.message,
+        };
+        let message_bytes = SerializedBytes::try_from(message)
+            .map_err(|err| wasm_error!(err))?
+            .bytes()
+            .to_vec();
         for recipient in input.recipients {
-            create_encrypted_message(recipient, input.message.clone())?;
+            create_encrypted_message(recipient, message_bytes.clone())?;
         }
 
         Ok(())
@@ -32,20 +46,13 @@ fn commit_pending_entries(_: Option<Schedule>) -> Option<Schedule> {
     Some(Schedule::Persisted("*/30 * * * * * *".into())) // Every 30 seconds
 }
 
-fn zome_name() -> ExternResult<ZomeName> {
-    match std::option_env!("PRIVATE_EVENT_SOURCING_ZOME") {
-        Some(z) => Ok(z.to_string().into()),
-        None => Err(wasm_error!("No zome name")),
-    }
-}
-
 pub fn internal_commit_pending_entries() -> ExternResult<()> {
     let messages = get_my_pending_encrypted_messages()?;
 
-    for (provenance, message) in messages {
+    for (provenance, message, zome_name) in messages {
         call(
             CallTargetCell::Local,
-            zome_name()?,
+            zome_name,
             FunctionName::from("receive_message"),
             None,
             ReceiveMessageInput {

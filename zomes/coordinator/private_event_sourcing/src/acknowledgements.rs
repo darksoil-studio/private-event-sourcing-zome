@@ -77,7 +77,7 @@ pub fn create_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
                 recipients.clone().into_iter().collect(),
             )?;
 
-            send_async_message(recipients, message)?;
+            send_async_message(recipients, format!("{event_hash}/acknowledgement"), message)?;
         }
     }
 
@@ -118,7 +118,11 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
             vec![recipient.clone()],
         )?;
 
-        send_async_message(vec![recipient.clone()].into_iter().collect(), message)?;
+        send_async_message(
+            vec![recipient.clone()].into_iter().collect(),
+            format!("{event_hash}/acknowledgement"),
+            message,
+        )?;
     } else {
         warn!("Received an event I already have but have not created an acknowledgement for.");
     }

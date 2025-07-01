@@ -1,6 +1,6 @@
 {
 	"name": "@darksoil-studio/private-event-sourcing-zome",
-	"version": "0.500.0",
+	"version": "0.501.0",
 	"scripts": {
 		"start": "vite --clearScreen false --port $UI_PORT",
 		"build": "pnpm lint && tsc && pnpm localize:build && pnpm analyze",
