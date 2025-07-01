@@ -64,7 +64,14 @@
 <a href="#63" id="63">63</a>
 <a href="#64" id="64">64</a>
 <a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="kw">use </span>agent_encrypted_message::{create_encrypted_message, get_my_pending_encrypted_messages};
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a></pre></div><pre class="rust"><code><span class="kw">use </span>agent_encrypted_message::{create_encrypted_message, get_my_pending_encrypted_messages};
 <span class="kw">pub use </span>encrypted_links_integrity::<span class="kw-2">*</span>;
 <span class="kw">use </span>hc_zome_traits::<span class="kw-2">*</span>;
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
@@ -76,13 +83,27 @@
 
 <span class="kw">pub struct </span>EncryptedMessagesInLinks;
 
+<span class="attr">#[derive(Serialize, Deserialize, Debug, SerializedBytes)]
+</span><span class="kw">pub struct </span>MessageWithZomeName {
+    <span class="kw">pub </span>zome_name: ZomeName,
+    <span class="kw">pub </span>message: Vec&lt;u8&gt;,
+}
+
 <span class="attr">#[implement_zome_trait_as_externs]
 </span><span class="kw">impl </span>SendAsyncMessage <span class="kw">for </span>EncryptedMessagesInLinks {
     <span class="kw">fn </span>send_async_message(
         input: send_async_message_zome_trait::SendAsyncMessageInput,
     ) -&gt; ExternResult&lt;()&gt; {
+        <span class="kw">let </span>message = MessageWithZomeName {
+            zome_name: input.zome_name,
+            message: input.message,
+        };
+        <span class="kw">let </span>message_bytes = SerializedBytes::try_from(message)
+            .map_err(|err| <span class="macro">wasm_error!</span>(err))<span class="question-mark">?
+            </span>.bytes()
+            .to_vec();
         <span class="kw">for </span>recipient <span class="kw">in </span>input.recipients {
-            create_encrypted_message(recipient, input.message.clone())<span class="question-mark">?</span>;
+            create_encrypted_message(recipient, message_bytes.clone())<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -98,20 +119,13 @@
     <span class="prelude-val">Some</span>(Schedule::Persisted(<span class="string">"*/30 * * * * * *"</span>.into())) <span class="comment">// Every 30 seconds
 </span>}
 
-<span class="kw">fn </span>zome_name() -&gt; ExternResult&lt;ZomeName&gt; {
-    <span class="kw">match </span><span class="macro">std::option_env!</span>(<span class="string">"PRIVATE_EVENT_SOURCING_ZOME"</span>) {
-        <span class="prelude-val">Some</span>(z) =&gt; <span class="prelude-val">Ok</span>(z.to_string().into()),
-        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro">wasm_error!</span>(<span class="string">"No zome name"</span>)),
-    }
-}
-
 <span class="kw">pub fn </span>internal_commit_pending_entries() -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>messages = get_my_pending_encrypted_messages()<span class="question-mark">?</span>;
 
-    <span class="kw">for </span>(provenance, message) <span class="kw">in </span>messages {
+    <span class="kw">for </span>(provenance, message, zome_name) <span class="kw">in </span>messages {
         call(
             CallTargetCell::Local,
-            zome_name()<span class="question-mark">?</span>,
+            zome_name,
             FunctionName::from(<span class="string">"receive_message"</span>),
             <span class="prelude-val">None</span>,
             ReceiveMessageInput {

@@ -113,11 +113,31 @@
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">use </span>encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_types::Message;
 
-<span class="kw">use </span><span class="kw">crate</span>::utils::{create_link_relaxed, create_relaxed, delete_link_relaxed};
+<span class="kw">use crate</span>::{
+    utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
+    MessageWithZomeName,
+};
 
 <span class="kw">pub fn </span>create_encrypted_message(recipient: AgentPubKey, message: Vec&lt;u8&gt;) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>chunks: Vec&lt;XSalsa20Poly1305Data&gt; =
@@ -191,11 +211,11 @@
     }
 }
 
-<span class="kw">pub fn </span>get_my_pending_encrypted_messages() -&gt; ExternResult&lt;Vec&lt;(AgentPubKey, Message)&gt;&gt; {
+<span class="kw">pub fn </span>get_my_pending_encrypted_messages() -&gt; ExternResult&lt;Vec&lt;(AgentPubKey, Message, ZomeName)&gt;&gt; {
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
     <span class="kw">let </span>links = get_agent_encrypted_messages(my_pub_key.clone())<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>messages: Vec&lt;(AgentPubKey, Message)&gt; = <span class="macro">vec!</span>[];
+    <span class="kw">let </span><span class="kw-2">mut </span>messages: Vec&lt;(AgentPubKey, Message, ZomeName)&gt; = <span class="macro">vec!</span>[];
 
     <span class="kw">for </span>link <span class="kw">in </span>links {
         <span class="macro">debug!</span>(<span class="string">"[commit_my_pending_encrypted_messages] Found an EncryptedMessage link."</span>);
@@ -219,11 +239,25 @@
             .collect();
         <span class="kw">let </span>decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(message) = Message::try_from(decrypted_serialized_bytes) {
-            messages.push((link.author, message));
-        }
-
         delete_link_relaxed(link.create_link_hash)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>result = MessageWithZomeName::try_from(decrypted_serialized_bytes);
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(message_with_zome_name) = result <span class="kw">else </span>{
+            <span class="macro">error!</span>(
+                <span class="string">"Failed to deserialize message with zome name: {:?}."</span>,
+                result
+            );
+            <span class="kw">continue</span>;
+        };
+
+        <span class="kw">let </span>result = Message::try_from(SerializedBytes::from(UnsafeBytes::from(
+            message_with_zome_name.message,
+        )));
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(message) = result <span class="kw">else </span>{
+            <span class="macro">error!</span>(<span class="string">"Failed to deserialize message: {:?}."</span>, result);
+            <span class="kw">continue</span>;
+        };
+        messages.push((link.author, message, message_with_zome_name.zome_name));
     }
 
     <span class="prelude-val">Ok</span>(messages)
