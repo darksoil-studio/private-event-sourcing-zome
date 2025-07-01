@@ -14,9 +14,7 @@
           example_integrity = self'.packages.example_integrity;
 
           encrypted_links_integrity = self'.packages.encrypted_links_integrity;
-          encrypted_links = self'.builders.encrypted_links {
-            private_event_sourcing_zome_name = "example";
-          };
+          encrypted_links = self'.packages.encrypted_links;
         };
       };
   };

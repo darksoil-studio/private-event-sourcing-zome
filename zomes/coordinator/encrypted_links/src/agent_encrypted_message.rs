@@ -2,7 +2,10 @@ use encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 use hdk::prelude::*;
 use private_event_sourcing_types::Message;
 
-use crate::utils::{create_link_relaxed, create_relaxed, delete_link_relaxed};
+use crate::{
+    utils::{create_link_relaxed, create_relaxed, delete_link_relaxed},
+    MessageWithZomeName,
+};
 
 pub fn create_encrypted_message(recipient: AgentPubKey, message: Vec<u8>) -> ExternResult<()> {
     let chunks: Vec<XSalsa20Poly1305Data> =
@@ -76,11 +79,11 @@ pub fn get_message(agent_encrypted_message_link: &Link) -> ExternResult<Option<E
     }
 }
 
-pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Message)>> {
+pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Message, ZomeName)>> {
     let my_pub_key = agent_info()?.agent_initial_pubkey;
     let links = get_agent_encrypted_messages(my_pub_key.clone())?;
 
-    let mut messages: Vec<(AgentPubKey, Message)> = vec![];
+    let mut messages: Vec<(AgentPubKey, Message, ZomeName)> = vec![];
 
     for link in links {
         debug!("[commit_my_pending_encrypted_messages] Found an EncryptedMessage link.");
@@ -104,11 +107,25 @@ pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Mes
             .collect();
         let decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
-        if let Ok(message) = Message::try_from(decrypted_serialized_bytes) {
-            messages.push((link.author, message));
-        }
-
         delete_link_relaxed(link.create_link_hash)?;
+
+        let result = MessageWithZomeName::try_from(decrypted_serialized_bytes);
+        let Ok(message_with_zome_name) = result else {
+            error!(
+                "Failed to deserialize message with zome name: {:?}.",
+                result
+            );
+            continue;
+        };
+
+        let result = Message::try_from(SerializedBytes::from(UnsafeBytes::from(
+            message_with_zome_name.message,
+        )));
+        let Ok(message) = result else {
+            error!("Failed to deserialize message: {:?}.", result);
+            continue;
+        };
+        messages.push((link.author, message, message_with_zome_name.zome_name));
     }
 
     Ok(messages)

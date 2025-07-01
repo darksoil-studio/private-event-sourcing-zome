@@ -11,7 +11,11 @@ fn async_message_zome() -> Option<ZomeName> {
     std::option_env!("ASYNC_MESSAGE_ZOME").map(|z| z.to_string().into())
 }
 
-pub fn send_async_message(recipients: BTreeSet<AgentPubKey>, message: Message) -> ExternResult<()> {
+pub fn send_async_message(
+    recipients: BTreeSet<AgentPubKey>,
+    message_id: String,
+    message: Message,
+) -> ExternResult<()> {
     let Some(zome) = async_message_zome() else {
         return Ok(());
     };
@@ -26,6 +30,8 @@ pub fn send_async_message(recipients: BTreeSet<AgentPubKey>, message: Message) -
         None,
         SendAsyncMessageInput {
             recipients,
+            zome_name: zome_info()?.name,
+            message_id,
             message: bytes.bytes().to_vec(),
         },
     )?;
