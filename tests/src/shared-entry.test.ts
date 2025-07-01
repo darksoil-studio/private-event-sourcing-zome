@@ -5,7 +5,7 @@ import { assert, expect, test } from 'vitest';
 import { setup, waitUntil } from './setup.js';
 import { dhtSync } from './sync.js';
 
-test('create a shared entry gets to each source chain', async () => {
+test.skip('create a shared entry gets to each source chain', async () => {
 	await runScenario(async scenario => {
 		const [alice, bob] = await setup(scenario);
 

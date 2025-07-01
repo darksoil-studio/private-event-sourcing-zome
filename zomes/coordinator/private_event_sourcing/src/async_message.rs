@@ -27,6 +27,7 @@ pub fn send_async_message(recipients: BTreeSet<AgentPubKey>, message: Message) -
         SendAsyncMessageInput {
             recipients,
             message: bytes.bytes().to_vec(),
+            zome_name: zome_info()?.name,
         },
     )?;
 
