@@ -132,7 +132,11 @@ pub fn resend_events_if_necessary<T: PrivateEvent>() -> ExternResult<()> {
                 recipients_to_send.clone().into_iter().collect(),
             )?;
 
-            if let Ok(()) = send_async_message(recipients_to_send.clone(), message) {
+            if let Ok(()) = send_async_message(
+                recipients_to_send.clone(),
+                EntryHashB64::from(event_hash).to_string(),
+                message,
+            ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
             }
         }
@@ -206,7 +210,11 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
                 recipients.clone().into_iter().collect(),
             )?;
 
-            if let Ok(()) = send_async_message(recipients.clone(), message) {
+            if let Ok(()) = send_async_message(
+                recipients.clone(),
+                EntryHashB64::from(event_hash).to_string(),
+                message,
+            ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
             }
         }

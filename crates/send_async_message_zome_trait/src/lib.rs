@@ -5,6 +5,7 @@ use hdk::prelude::*;
 pub struct SendAsyncMessageInput {
     pub recipients: BTreeSet<AgentPubKey>,
     pub zome_name: ZomeName,
+    pub message_id: String,
     pub message: Vec<u8>,
 }
 
