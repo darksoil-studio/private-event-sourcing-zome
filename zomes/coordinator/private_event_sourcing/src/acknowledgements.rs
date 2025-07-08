@@ -84,17 +84,20 @@ pub fn create_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
     Ok(())
 }
 
-pub fn query_acknowledgement_for(
+pub fn query_my_acknowledgement_for(
     event_hash: &EntryHashB64,
 ) -> ExternResult<Option<Acknowledgement>> {
     let acknowledgements = query_acknowledgement_entries(())?;
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
     Ok(acknowledgements
         .iter()
         .find(|a| {
-            a.0.payload
-                .content
-                .private_event_hash
-                .eq(&EntryHash::from(event_hash.clone()))
+            a.0.author.eq(&my_pub_key)
+                && a.0
+                    .payload
+                    .content
+                    .private_event_hash
+                    .eq(&EntryHash::from(event_hash.clone()))
         })
         .cloned())
 }
@@ -103,7 +106,7 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
     event_hash: &EntryHashB64,
     recipient: &AgentPubKey,
 ) -> ExternResult<()> {
-    if let Some(acknowledgement) = query_acknowledgement_for(event_hash)? {
+    if let Some(acknowledgement) = query_my_acknowledgement_for(event_hash)? {
         let message = Message {
             private_events: vec![],
             events_sent_to_recipients: vec![],
