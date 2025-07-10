@@ -8,6 +8,11 @@ use send_async_message_zome_trait::SendAsyncMessage;
 mod agent_encrypted_message;
 mod utils;
 
+#[implemented_zome_traits]
+pub enum ZomeTraits {
+    SendAsyncMessage(EncryptedMessagesInLinks),
+}
+
 pub struct EncryptedMessagesInLinks;
 
 #[derive(Serialize, Deserialize, Debug, SerializedBytes)]
