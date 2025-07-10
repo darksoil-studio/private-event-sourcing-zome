@@ -122,11 +122,15 @@ pub fn receive_private_events<T: PrivateEvent>(
     let mut ordered_their_private_event_entries: Vec<PrivateEventEntry> = private_event_entries;
     ordered_their_private_event_entries.sort_by_key(|e| e.0.payload.timestamp);
 
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
+
     for private_event_entry in ordered_their_private_event_entries {
         let entry_hash = EntryHashB64::from(hash_entry(&private_event_entry)?);
-        if my_private_event_entries.contains_key(&entry_hash) {
+        if let Some(event) = my_private_event_entries.get(&entry_hash) {
             // We already have this message committed
-            send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
+            if event.0.author.ne(&my_pub_key) {
+                send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
+            }
             continue;
         }
 
