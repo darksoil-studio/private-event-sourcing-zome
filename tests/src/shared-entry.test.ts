@@ -1,9 +1,8 @@
 import { toPromise } from '@darksoil-studio/holochain-signals';
-import { pause, runScenario } from '@holochain/tryorama';
+import { dhtSync, pause, runScenario } from '@holochain/tryorama';
 import { assert, expect, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
-import { dhtSync } from './sync.js';
 
 test('create a shared entry gets to each source chain', async () => {
 	await runScenario(async scenario => {
@@ -64,13 +63,12 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 		let privateEvents = await toPromise(alice.store.privateEvents);
 		assert.equal(Object.keys(privateEvents).length, 1);
 
-		// await dhtSync(
-		// 	[alice.player, carol.player],
-		// 	alice.player.cells[0].cell_id[0],
-		// 	2000,
-		// 	1000 * 60 * 10, // 10 mins
-		// );
-		await pause(10000);
+		await dhtSync(
+			[alice.player, carol.player],
+			alice.player.cells[0].cell_id[0],
+			2000,
+			1000 * 60 * 10, // 10 mins
+		);
 
 		await alice.player.conductor.shutDown();
 
