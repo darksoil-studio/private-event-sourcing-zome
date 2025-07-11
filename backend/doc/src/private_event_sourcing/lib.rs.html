@@ -278,7 +278,14 @@
 <a href="#277" id="277">277</a>
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>strum::IntoStaticStr;
 
 <span class="kw">pub use </span>acknowledgements::<span class="kw-2">*</span>;
@@ -444,17 +451,23 @@
 
 <span class="attr">#[hdk_extern(infallible)]
 </span><span class="kw">pub fn </span>post_commit(committed_actions: Vec&lt;SignedActionHashed&gt;) {
-    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = call_send_events(<span class="kw-2">&amp;</span>committed_actions) {
-        <span class="macro">error!</span>(<span class="string">"Error calling send events: {:?}"</span>, err);
-    }
+    <span class="macro">debug!</span>(<span class="string">"[post_commit] start."</span>);
 
-    <span class="kw">for </span>action <span class="kw">in </span>committed_actions {
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = signal_action(action) {
+    <span class="kw">for </span>action <span class="kw">in </span><span class="kw-2">&amp;</span>committed_actions {
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = signal_action(action.clone()) {
             <span class="macro">error!</span>(<span class="string">"Error signaling new action: {:?}"</span>, err);
         }
     }
+
+    <span class="macro">debug!</span>(<span class="string">"[post_commit] calling send events."</span>);
+    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = call_send_events(<span class="kw-2">&amp;</span>committed_actions) {
+        <span class="macro">error!</span>(<span class="string">"Error calling send events: {:?}"</span>, err);
+    }
+    <span class="macro">debug!</span>(<span class="string">"[post_commit] end."</span>);
 }
+
 <span class="kw">fn </span>signal_action(action: SignedActionHashed) -&gt; ExternResult&lt;()&gt; {
+    <span class="macro">debug!</span>(<span class="string">"[post_commit] signal action: {:?}."</span>, action);
     <span class="kw">match </span>action.hashed.content.clone() {
         <span class="comment">// Action::CreateLink(create_link) =&gt; {
         //     if let Ok(Some(link_type)) =
@@ -502,6 +515,7 @@
                     }
                     <span class="kw">_ </span>=&gt; {}
                 };
+                <span class="macro">debug!</span>(<span class="string">"[post_commit] signaling entry created."</span>);
                 emit_signal(Signal::EntryCreated { action, app_entry })<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Ok</span>(())

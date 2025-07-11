@@ -216,7 +216,12 @@
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
@@ -330,6 +335,11 @@
             events_sent_to_recipients: <span class="macro">vec!</span>[],
             acknowledgements: <span class="macro">vec!</span>[acknowledgement.clone()],
         };
+
+        <span class="macro">info!</span>(
+            <span class="string">"Sending acknowledgement for event {} to agent {}."</span>,
+            event_hash, recipient
+        );
 
         send_remote_signal(
             SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(

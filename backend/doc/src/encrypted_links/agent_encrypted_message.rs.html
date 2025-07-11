@@ -130,7 +130,8 @@
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>encrypted_links_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_types::Message;
 
@@ -239,6 +240,7 @@
             .collect();
         <span class="kw">let </span>decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
+        get(link.create_link_hash.clone(), GetOptions::default())<span class="question-mark">?</span>;
         delete_link_relaxed(link.create_link_hash)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result = MessageWithZomeName::try_from(decrypted_serialized_bytes);

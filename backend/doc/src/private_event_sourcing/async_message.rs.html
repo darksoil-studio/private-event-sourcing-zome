@@ -51,7 +51,17 @@
 <a href="#50" id="50">50</a>
 <a href="#51" id="51">51</a>
 <a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#53" id="53">53</a>
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::Message;
 <span class="kw">use </span>send_async_message_zome_trait::SendAsyncMessageInput;
 
@@ -96,11 +106,21 @@
     provenance: AgentPubKey,
     message: Message,
 ) -&gt; ExternResult&lt;()&gt; {
+    <span class="macro">debug!</span>(<span class="string">"[receive_message] start."</span>);
+
+    <span class="kw">let </span>message_count = message.private_events.len();
+
     receive_private_events::&lt;T&gt;(provenance.clone(), message.private_events)<span class="question-mark">?</span>;
+    <span class="macro">debug!</span>(
+        <span class="string">"[receive_message] received {} private events."</span>,
+        message_count
+    );
 
     receive_events_sent_to_recipients::&lt;T&gt;(provenance.clone(), message.events_sent_to_recipients)<span class="question-mark">?</span>;
+    <span class="macro">debug!</span>(<span class="string">"[receive_message] received events_sent_to_recipients."</span>);
 
     receive_acknowledgements::&lt;T&gt;(provenance.clone(), message.acknowledgements)<span class="question-mark">?</span>;
+    <span class="macro">debug!</span>(<span class="string">"[receive_message] received acknowledgements."</span>);
 
     <span class="prelude-val">Ok</span>(())
 }

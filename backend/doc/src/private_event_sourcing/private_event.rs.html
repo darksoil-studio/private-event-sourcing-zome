@@ -296,7 +296,11 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{PrivateEventContent, <span class="kw-2">*</span>};
 <span class="kw">use </span>serde::de::DeserializeOwned;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -420,11 +424,15 @@
     <span class="kw">let </span><span class="kw-2">mut </span>ordered_their_private_event_entries: Vec&lt;PrivateEventEntry&gt; = private_event_entries;
     ordered_their_private_event_entries.sort_by_key(|e| e.<span class="number">0</span>.payload.timestamp);
 
+    <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
+
     <span class="kw">for </span>private_event_entry <span class="kw">in </span>ordered_their_private_event_entries {
         <span class="kw">let </span>entry_hash = EntryHashB64::from(hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>);
-        <span class="kw">if </span>my_private_event_entries.contains_key(<span class="kw-2">&amp;</span>entry_hash) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(event) = my_private_event_entries.get(<span class="kw-2">&amp;</span>entry_hash) {
             <span class="comment">// We already have this message committed
-            </span>send_acknowledgement_for_event_to_recipient::&lt;T&gt;(<span class="kw-2">&amp;</span>entry_hash, <span class="kw-2">&amp;</span>provenance)<span class="question-mark">?</span>;
+            </span><span class="kw">if </span>event.<span class="number">0</span>.author.ne(<span class="kw-2">&amp;</span>my_pub_key) {
+                send_acknowledgement_for_event_to_recipient::&lt;T&gt;(<span class="kw-2">&amp;</span>entry_hash, <span class="kw-2">&amp;</span>provenance)<span class="question-mark">?</span>;
+            }
             <span class="kw">continue</span>;
         }
 
@@ -432,9 +440,9 @@
 
         <span class="kw">match </span>outcome {
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Valid) =&gt; {
-                <span class="macro">info!</span>(<span class="string">"Received a PrivateEvent {entry_hash}."</span>);
                 <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
                 create_relaxed(app_entry)<span class="question-mark">?</span>;
+                <span class="macro">info!</span>(<span class="string">"Received a PrivateEvent {entry_hash}."</span>);
             }
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(reason)) =&gt; {
                 <span class="macro">warn!</span>(<span class="string">"Received an invalid PrivateEvent {entry_hash}: discarding."</span>);
