@@ -1,4 +1,4 @@
-import { toPromise } from '@darksoil-studio/holochain-signals';
+import { Signal, toPromise } from '@darksoil-studio/holochain-signals';
 import { dhtSync, pause, runScenario } from '@holochain/tryorama';
 import { assert, expect, test } from 'vitest';
 

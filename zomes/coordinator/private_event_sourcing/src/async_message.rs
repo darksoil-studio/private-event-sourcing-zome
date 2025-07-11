@@ -43,11 +43,21 @@ pub fn receive_message<T: PrivateEvent>(
     provenance: AgentPubKey,
     message: Message,
 ) -> ExternResult<()> {
+    debug!("[receive_message] start.");
+
+    let message_count = message.private_events.len();
+
     receive_private_events::<T>(provenance.clone(), message.private_events)?;
+    debug!(
+        "[receive_message] received {} private events.",
+        message_count
+    );
 
     receive_events_sent_to_recipients::<T>(provenance.clone(), message.events_sent_to_recipients)?;
+    debug!("[receive_message] received events_sent_to_recipients.");
 
     receive_acknowledgements::<T>(provenance.clone(), message.acknowledgements)?;
+    debug!("[receive_message] received acknowledgements.");
 
     Ok(())
 }

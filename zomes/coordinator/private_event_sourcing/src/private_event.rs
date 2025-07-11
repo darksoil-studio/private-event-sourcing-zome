@@ -138,9 +138,9 @@ pub fn receive_private_events<T: PrivateEvent>(
 
         match outcome {
             Ok(ValidateCallbackResult::Valid) => {
-                info!("Received a PrivateEvent {entry_hash}.");
                 let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
                 create_relaxed(app_entry)?;
+                info!("Received a PrivateEvent {entry_hash}.");
             }
             Ok(ValidateCallbackResult::Invalid(reason)) => {
                 warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");

@@ -55,8 +55,8 @@ pub fn internal_commit_pending_entries() -> ExternResult<()> {
     let messages = get_my_pending_encrypted_messages()?;
 
     for (provenance, message, zome_name) in messages {
-        call(
-            CallTargetCell::Local,
+        call_remote(
+            agent_info()?.agent_initial_pubkey,
             zome_name,
             FunctionName::from("receive_message"),
             None,
@@ -65,6 +65,7 @@ pub fn internal_commit_pending_entries() -> ExternResult<()> {
                 message,
             },
         )?;
+        debug!("[commit_pending_entries] received message successfully.");
     }
 
     Ok(())
