@@ -164,17 +164,23 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
 
 #[hdk_extern(infallible)]
 pub fn post_commit(committed_actions: Vec<SignedActionHashed>) {
-    if let Err(err) = call_send_events(&committed_actions) {
-        error!("Error calling send events: {:?}", err);
-    }
+    debug!("[post_commit] start.");
 
-    for action in committed_actions {
-        if let Err(err) = signal_action(action) {
+    for action in &committed_actions {
+        if let Err(err) = signal_action(action.clone()) {
             error!("Error signaling new action: {:?}", err);
         }
     }
+
+    debug!("[post_commit] calling send events.");
+    if let Err(err) = call_send_events(&committed_actions) {
+        error!("Error calling send events: {:?}", err);
+    }
+    debug!("[post_commit] end.");
 }
+
 fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
+    debug!("[post_commit] signal action: {:?}.", action);
     match action.hashed.content.clone() {
         // Action::CreateLink(create_link) => {
         //     if let Ok(Some(link_type)) =
@@ -222,6 +228,7 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
                     }
                     _ => {}
                 };
+                debug!("[post_commit] signaling entry created.");
                 emit_signal(Signal::EntryCreated { action, app_entry })?;
             }
             Ok(())

@@ -107,6 +107,7 @@ pub fn get_my_pending_encrypted_messages() -> ExternResult<Vec<(AgentPubKey, Mes
             .collect();
         let decrypted_serialized_bytes = SerializedBytes::from(UnsafeBytes::from(decrypted_bytes));
 
+        get(link.create_link_hash.clone(), GetOptions::default())?;
         delete_link_relaxed(link.create_link_hash)?;
 
         let result = MessageWithZomeName::try_from(decrypted_serialized_bytes);
