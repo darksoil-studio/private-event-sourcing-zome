@@ -113,6 +113,11 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
             acknowledgements: vec![acknowledgement.clone()],
         };
 
+        info!(
+            "Sending acknowledgement for event {} to agent {}.",
+            event_hash, recipient
+        );
+
         send_remote_signal(
             SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
                 message.clone(),
