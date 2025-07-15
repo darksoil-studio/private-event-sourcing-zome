@@ -3,7 +3,7 @@
 {
   perSystem = { inputs', self', lib, system, ... }: {
     packages.private_event_sourcing_test_dna =
-      inputs.holochain-nix-builders.outputs.builders.${system}.dna {
+      inputs.holochain-utils.outputs.builders.${system}.dna {
         dnaManifest = ./dna.yaml;
         zomes = {
           linked_devices_integrity =
