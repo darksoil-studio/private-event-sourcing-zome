@@ -127,9 +127,7 @@
     "holochain-utils": {
       "inputs": {
         "holochain-nix-builders": "holochain-nix-builders",
-        "holonix": [
-          "holonix"
-        ],
+        "holonix": "holonix",
         "nixpkgs": [
           "holochain-utils",
           "holonix",
@@ -164,7 +162,10 @@
         "kitsune2": "kitsune2",
         "lair-keystore": "lair-keystore",
         "nixpkgs": "nixpkgs",
-        "playground": "playground_2",
+        "playground": [
+          "holochain-utils",
+          "playground"
+        ],
         "rust-overlay": "rust-overlay"
       },
       "locked": {
@@ -221,21 +222,18 @@
         "holochain-utils": [
           "holochain-utils"
         ],
-        "holonix": [
-          "holonix"
-        ],
         "nixpkgs": [
           "linked-devices-zome",
-          "holonix",
+          "holochain-utils",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1752595501,
-        "narHash": "sha256-QKW0p67S3txjAjNF3iq8PO9K9kt4OXZwrymznF49+1w=",
+        "lastModified": 1752660571,
+        "narHash": "sha256-l7hpNbWDuU/6c5Rvjem81YUQud8s8+uqWJZfq/YAgcg=",
         "owner": "darksoil-studio",
         "repo": "linked-devices-zome",
-        "rev": "32ccd54fd917e9d9713c2e924b156d49fd1ceb00",
+        "rev": "e7e158fc048c3e0e66317297cf5ac5b0f9a3d886",
         "type": "github"
       },
       "original": {
@@ -312,30 +310,12 @@
         "type": "github"
       }
     },
-    "playground_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1748941883,
-        "narHash": "sha256-YeLySFcUnDpbJPaNn5UF5LE3DlIYRlJLmknqqy7GHws=",
-        "owner": "darksoil-studio",
-        "repo": "holochain-playground",
-        "rev": "9962a33ce1d00c9d0a32724644032852dd88a083",
-        "type": "github"
-      },
-      "original": {
-        "owner": "darksoil-studio",
-        "ref": "main-0.5",
-        "repo": "holochain-playground",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "holochain-utils": "holochain-utils",
-        "holonix": "holonix",
         "linked-devices-zome": "linked-devices-zome",
         "nixpkgs": [
-          "holonix",
+          "holochain-utils",
           "nixpkgs"
         ]
       }
@@ -343,6 +323,7 @@
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
+          "holochain-utils",
           "holonix",
           "nixpkgs"
         ]
