@@ -60,12 +60,7 @@
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a></pre></div><pre class="rust"><code><span class="kw">use </span>proc_macro::TokenStream;
+<a href="#62" id="62">62</a></pre></div><pre class="rust"><code><span class="kw">use </span>proc_macro::TokenStream;
 <span class="kw">use </span>proc_macro_error::abort;
 <span class="kw">use </span>syn::parse_macro_input;
 <span class="kw">use </span>syn::Item;
@@ -116,18 +111,13 @@
             private_event_sourcing::receive_message::&lt;#ident&gt;(input.provenance, input.message)
         }
 
-        <span class="attr">#[hdk_extern]
-        </span><span class="kw">pub fn </span>create_acknowledgements() -&gt; ExternResult&lt;()&gt; {
-            private_event_sourcing::create_acknowledgements::&lt;#ident&gt;()
-        }
-
         <span class="attr">#[hdk_extern(infallible)]
         </span><span class="kw">fn </span>scheduled_tasks(<span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;Schedule&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Schedule&gt; {
             <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = private_event_sourcing::scheduled_tasks::&lt;#ident&gt;() {
                 <span class="macro">error!</span>(<span class="string">"Failed to perform scheduled tasks: {err:?}"</span>);
             }
 
-            <span class="prelude-val">Some</span>(Schedule::Persisted(<span class="string">"*/15 * * * * * *"</span>.into())) <span class="comment">// Every 15 seconds
+            <span class="prelude-val">Some</span>(Schedule::Persisted(<span class="string">"*/55 * * * * * *"</span>.into())) <span class="comment">// Every 55 seconds
         </span>}
     };
     output.into()

@@ -253,7 +253,7 @@
 };
 
 <span class="kw">use crate</span>::{
-    acknowledgements::query_acknowledgements_by_agents, attempt_commit_awaiting_deps_entries, create_acknowledgements, events_sent_to_recipients::{
+    acknowledgements::query_acknowledgements_by_agents,   create_acknowledgements_for, events_sent_to_recipients::{
         query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
     }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
 };
@@ -396,7 +396,7 @@
 
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
 
-    <span class="kw">for </span>event_hash <span class="kw">in </span>event_hashes {
+    <span class="kw">for </span>event_hash <span class="kw">in </span><span class="kw-2">&amp;</span>event_hashes {
         <span class="kw">let </span><span class="prelude-val">Some</span>(private_event_entry) = query_private_event_entry(event_hash.clone())<span class="question-mark">? </span><span class="kw">else </span>{
             <span class="macro">error!</span>(<span class="string">"Could not find private event entry: {}."</span>, event_hash);
             <span class="kw">continue</span>;
@@ -456,7 +456,7 @@
 
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = send_async_message(
                 recipients.clone(),
-                EntryHashB64::from(event_hash).to_string(),
+                EntryHashB64::from(event_hash.clone()).to_string(),
                 message,
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))<span class="question-mark">?</span>;
@@ -464,7 +464,7 @@
         }
     }
 
-    create_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
+    create_acknowledgements_for::&lt;T&gt;(event_hashes)<span class="question-mark">?</span>;
 
     <span class="comment">// This makes the stress test fail
     // Because over time a bunch of queries accumulate in memory

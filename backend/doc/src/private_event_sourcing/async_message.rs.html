@@ -61,7 +61,9 @@
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::Message;
 <span class="kw">use </span>send_async_message_zome_trait::SendAsyncMessageInput;
 
@@ -116,11 +118,13 @@
         message_count
     );
 
+    <span class="kw">let </span>count = message.events_sent_to_recipients.len();
     receive_events_sent_to_recipients::&lt;T&gt;(provenance.clone(), message.events_sent_to_recipients)<span class="question-mark">?</span>;
-    <span class="macro">debug!</span>(<span class="string">"[receive_message] received events_sent_to_recipients."</span>);
+    <span class="macro">debug!</span>(<span class="string">"[receive_message] received {} events_sent_to_recipients."</span>, count);
 
+    <span class="kw">let </span>count = message.acknowledgements.len();
     receive_acknowledgements::&lt;T&gt;(provenance.clone(), message.acknowledgements)<span class="question-mark">?</span>;
-    <span class="macro">debug!</span>(<span class="string">"[receive_message] received acknowledgements."</span>);
+    <span class="macro">debug!</span>(<span class="string">"[receive_message] received {} acknowledgements."</span>, count);
 
     <span class="prelude-val">Ok</span>(())
 }

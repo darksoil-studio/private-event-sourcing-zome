@@ -276,7 +276,7 @@
 <span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
     resend_events_if_necessary::&lt;T&gt;()<span class="question-mark">?</span>;
     attempt_commit_awaiting_deps_entries::&lt;T&gt;()<span class="question-mark">?</span>;
-    create_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
+    create_pending_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
