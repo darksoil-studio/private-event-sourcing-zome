@@ -246,20 +246,16 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
     EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message, SignedEntry,
 };
 
 <span class="kw">use crate</span>::{
-    acknowledgements::query_acknowledgements_by_agents,
-    events_sent_to_recipients::{
+    acknowledgements::query_acknowledgements_by_agents, attempt_commit_awaiting_deps_entries, create_acknowledgements, events_sent_to_recipients::{
         query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
-    },
-    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
-    query_private_event_entry, send_async_message,
-    utils::create_relaxed,
-    PrivateEvent, PrivateEventSourcingRemoteSignal,
+    }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
 };
 
 <span class="kw">const </span>INTERVAL_RESEND_MS: i64 = <span class="number">1000 </span>* <span class="number">60 </span>* <span class="number">60 </span>* <span class="number">24 </span>* <span class="number">1000</span>; <span class="comment">// 1000 days
@@ -468,7 +464,13 @@
         }
     }
 
-    <span class="prelude-val">Ok</span>(())
+    create_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
+
+    <span class="comment">// This makes the stress test fail
+    // Because over time a bunch of queries accumulate in memory
+    // attempt_commit_awaiting_deps_entries::&lt;T&gt;()?;
+
+    </span><span class="prelude-val">Ok</span>(())
 }
 
 <span class="attr">#[hdk_extern]
