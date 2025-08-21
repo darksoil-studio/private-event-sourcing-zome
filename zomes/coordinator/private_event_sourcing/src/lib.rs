@@ -27,7 +27,7 @@ pub use private_event_proc_macro::*;
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
     resend_events_if_necessary::<T>()?;
     attempt_commit_awaiting_deps_entries::<T>()?;
-    create_acknowledgements::<T>()?;
+    create_pending_acknowledgements::<T>()?;
     Ok(())
 }
 

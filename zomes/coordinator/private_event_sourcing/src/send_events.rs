@@ -4,7 +4,7 @@ use private_event_sourcing_integrity::{
 };
 
 use crate::{
-    acknowledgements::query_acknowledgements_by_agents, attempt_commit_awaiting_deps_entries, create_acknowledgements, events_sent_to_recipients::{
+    acknowledgements::query_acknowledgements_by_agents,   create_acknowledgements_for, events_sent_to_recipients::{
         query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
     }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
 };
@@ -147,7 +147,7 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
 
     let my_pub_key = agent_info()?.agent_initial_pubkey;
 
-    for event_hash in event_hashes {
+    for event_hash in &event_hashes {
         let Some(private_event_entry) = query_private_event_entry(event_hash.clone())? else {
             error!("Could not find private event entry: {}.", event_hash);
             continue;
@@ -207,7 +207,7 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
 
             if let Ok(()) = send_async_message(
                 recipients.clone(),
-                EntryHashB64::from(event_hash).to_string(),
+                EntryHashB64::from(event_hash.clone()).to_string(),
                 message,
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
@@ -215,7 +215,7 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
         }
     }
 
-    create_acknowledgements::<T>()?;
+    create_acknowledgements_for::<T>(event_hashes)?;
 
     // This makes the stress test fail
     // Because over time a bunch of queries accumulate in memory
