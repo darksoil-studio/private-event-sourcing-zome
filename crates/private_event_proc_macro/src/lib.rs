@@ -60,7 +60,7 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
                 error!("Failed to perform scheduled tasks: {err:?}");
             }
 
-            Some(Schedule::Persisted("*/55 * * * * * *".into())) // Every 55 seconds
+            Some(Schedule::Persisted("*/15 * * * * * *".into())) // Every 15 seconds
         }
     };
     output.into()

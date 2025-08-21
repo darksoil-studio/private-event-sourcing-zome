@@ -4,14 +4,9 @@ use private_event_sourcing_integrity::{
 };
 
 use crate::{
-    acknowledgements::query_acknowledgements_by_agents,
-    events_sent_to_recipients::{
+    acknowledgements::query_acknowledgements_by_agents, attempt_commit_awaiting_deps_entries, create_acknowledgements, events_sent_to_recipients::{
         query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
-    },
-    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
-    query_private_event_entry, send_async_message,
-    utils::create_relaxed,
-    PrivateEvent, PrivateEventSourcingRemoteSignal,
+    }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
 };
 
 const INTERVAL_RESEND_MS: i64 = 1000 * 60 * 60 * 24 * 1000; // 1000 days
@@ -219,6 +214,12 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             }
         }
     }
+
+    create_acknowledgements::<T>()?;
+
+    // This makes the stress test fail
+    // Because over time a bunch of queries accumulate in memory
+    // attempt_commit_awaiting_deps_entries::<T>()?;
 
     Ok(())
 }

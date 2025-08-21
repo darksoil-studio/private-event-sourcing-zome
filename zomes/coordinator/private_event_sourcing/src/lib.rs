@@ -121,42 +121,6 @@ pub fn call_send_events(committed_actions: &Vec<SignedActionHashed>) -> ExternRe
         let ZomeCallResponse::Ok(_) = result else {
             return Err(wasm_error!("Error calling 'send_events': {:?}", result));
         };
-        let result = call(
-            CallTargetCell::Local,
-            zome_info()?.name,
-            "create_acknowledgements".into(),
-            None,
-            (),
-        )?;
-        let ZomeCallResponse::Ok(_) = result else {
-            return Err(wasm_error!(
-                "Error calling 'create_acknowledgements': {:?}",
-                result
-            ));
-        };
-        let result = call(
-            CallTargetCell::Local,
-            zome_info()?.name,
-            "attempt_commit_awaiting_deps_entries".into(),
-            None,
-            (),
-        )?;
-        let ZomeCallResponse::Ok(_) = result else {
-            return Err(wasm_error!(
-                "Error calling 'attempt_commit_awaiting_deps_entries': {:?}",
-                result
-            ));
-        };
-        let result = call(
-            CallTargetCell::Local,
-            zome_info()?.name,
-            "resend_events_if_necessary".into(),
-            None,
-            (),
-        )?;
-        let ZomeCallResponse::Ok(_) = result else {
-            return Err(wasm_error!("Error calling 'send_events': {:?}", result));
-        };
     }
 
     Ok(())

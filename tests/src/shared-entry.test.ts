@@ -82,3 +82,49 @@ test('create a shared entry gets to each source chain asynchronously', async () 
 		}, 200_000);
 	});
 });
+
+test('stress test create entries', async () => {
+	await runScenario(async scenario => {
+		const [alice, bob] = await setup(scenario);
+
+		const ENTRIES_NUMBER = 100;
+
+		for (let i = 0; i < ENTRIES_NUMBER; i++) {
+			await alice.store.client.client.callZome({
+				role_name: 'private_event_sourcing_test',
+				zome_name: 'example',
+				fn_name: 'create_private_shared_entry',
+				payload: {
+					type: 'SharedEntry',
+					recipient: bob.player.agentPubKey,
+					content: 'hello',
+				},
+			});
+		}
+
+		await pause(2000);
+
+		let privateEvents = await toPromise(alice.store.privateEvents);
+		assert.equal(Object.keys(privateEvents).length, ENTRIES_NUMBER);
+
+		let eventsSent = await toPromise(alice.store.eventsSentToRecipients);
+		assert.equal(Object.keys(eventsSent).length, ENTRIES_NUMBER);
+
+		waitUntil(async () => {
+			const privateEvents = await toPromise(bob.store.privateEvents);
+
+			const eventsSent = await toPromise(bob.store.eventsSentToRecipients);
+			const acknowledgements = await toPromise(bob.store.acknowledgements);
+			return (
+				Object.keys(privateEvents).length === ENTRIES_NUMBER &&
+				Object.keys(eventsSent).length === ENTRIES_NUMBER &&
+				Object.keys(acknowledgements).length === ENTRIES_NUMBER
+			);
+		}, 10_000);
+
+		waitUntil(async () => {
+			let acknowledgements = await toPromise(alice.store.acknowledgements);
+			return Object.keys(acknowledgements).length === ENTRIES_NUMBER;
+		}, 10_000);
+	});
+});
