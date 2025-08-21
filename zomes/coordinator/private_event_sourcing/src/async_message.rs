@@ -53,11 +53,13 @@ pub fn receive_message<T: PrivateEvent>(
         message_count
     );
 
+    let count = message.events_sent_to_recipients.len();
     receive_events_sent_to_recipients::<T>(provenance.clone(), message.events_sent_to_recipients)?;
-    debug!("[receive_message] received events_sent_to_recipients.");
+    debug!("[receive_message] received {} events_sent_to_recipients.", count);
 
+    let count = message.acknowledgements.len();
     receive_acknowledgements::<T>(provenance.clone(), message.acknowledgements)?;
-    debug!("[receive_message] received acknowledgements.");
+    debug!("[receive_message] received {} acknowledgements.", count);
 
     Ok(())
 }
