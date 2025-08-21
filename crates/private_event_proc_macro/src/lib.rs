@@ -49,18 +49,13 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
             private_event_sourcing::receive_message::<#ident>(input.provenance, input.message)
         }
 
-        #[hdk_extern]
-        pub fn create_acknowledgements() -> ExternResult<()> {
-            private_event_sourcing::create_acknowledgements::<#ident>()
-        }
-
         #[hdk_extern(infallible)]
         fn scheduled_tasks(_: Option<Schedule>) -> Option<Schedule> {
             if let Err(err) = private_event_sourcing::scheduled_tasks::<#ident>() {
                 error!("Failed to perform scheduled tasks: {err:?}");
             }
 
-            Some(Schedule::Persisted("*/15 * * * * * *".into())) // Every 15 seconds
+            Some(Schedule::Persisted("*/55 * * * * * *".into())) // Every 55 seconds
         }
     };
     output.into()

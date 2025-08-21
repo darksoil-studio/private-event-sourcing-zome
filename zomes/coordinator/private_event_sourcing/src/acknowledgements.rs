@@ -4,81 +4,114 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    query_event_histories, query_private_event_entries, send_async_message, utils::create_relaxed,
-    PrivateEvent, PrivateEventSourcingRemoteSignal,
+    query_event_histories, query_private_event, query_private_event_entries,
+    query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent,
+    PrivateEventSourcingRemoteSignal,
 };
 
-pub fn create_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
+pub fn create_pending_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
     let private_event_entries = query_private_event_entries(())?;
     let acknowledgement_entries = query_acknowledgement_entries(())?;
 
     for (event_hash, private_event_entry) in private_event_entries {
-        if private_event_entry
-            .0
-            .author
-            .eq(&agent_info()?.agent_initial_pubkey)
-        {
-            continue; // We are the author, no need to create acknowledgement
-        }
+        create_acknowledgements_for_event::<T>(
+            event_hash.into(),
+            private_event_entry,
+            &acknowledgement_entries,
+        )?;
+    }
 
-        if acknowledgement_entries.iter().any(|a| {
-            a.0.payload
-                .content
-                .private_event_hash
-                .eq(&EntryHash::from(event_hash.clone()))
-        }) {
-            // We have already created an acknowledgement for this entry
-            continue;
-        }
-        let acknowledgement_content = AcknowledgementContent {
-            private_event_hash: event_hash.clone().into(),
-        };
-        let signed_entry = SignedEntry::build(acknowledgement_content)?;
-        let acknowledgement = Acknowledgement(signed_entry);
+    Ok(())
+}
 
-        info!("Creating acknowledgement for entry {}.", event_hash);
-        create_relaxed(EntryTypes::Acknowledgement(acknowledgement.clone()))?;
+pub fn create_acknowledgements_for<T: PrivateEvent>(
+    events_hashes: BTreeSet<EntryHash>,
+) -> ExternResult<()> {
+    let acknowledgement_entries = query_acknowledgement_entries(())?;
 
-        let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
-            .map_err(|_err| wasm_error!("Failed to deserialize the private event."))?;
+    for event_hash in events_hashes {
+        let private_event_entry = query_private_event_entry(event_hash.clone())?
+            .ok_or(wasm_error!("Event not found."))?;
+        create_acknowledgements_for_event::<T>(
+            event_hash,
+            private_event_entry,
+            &acknowledgement_entries,
+        )?;
+    }
 
-        let mut recipients = private_event.recipients(
-            event_hash.clone().into(),
-            private_event_entry.0.author.clone(),
-            private_event_entry.0.payload.timestamp,
+    Ok(())
+}
+
+fn create_acknowledgements_for_event<T: PrivateEvent>(
+    event_hash: EntryHash,
+    private_event_entry: PrivateEventEntry,
+    acknowledgement_entries: &Vec<Acknowledgement>,
+) -> ExternResult<()> {
+    if private_event_entry
+        .0
+        .author
+        .eq(&agent_info()?.agent_initial_pubkey)
+    {
+        return Ok(()); // We are the author, no need to create acknowledgement
+    }
+
+    if acknowledgement_entries.iter().any(|a| {
+        a.0.payload
+            .content
+            .private_event_hash
+            .eq(&EntryHash::from(event_hash.clone()))
+    }) {
+        // We have already created an acknowledgement for this entry
+        return Ok(());
+    }
+    let acknowledgement_content = AcknowledgementContent {
+        private_event_hash: event_hash.clone().into(),
+    };
+    let signed_entry = SignedEntry::build(acknowledgement_content)?;
+    let acknowledgement = Acknowledgement(signed_entry);
+
+    info!("Creating acknowledgement for entry {}.", event_hash);
+    create_relaxed(EntryTypes::Acknowledgement(acknowledgement.clone()))?;
+
+    let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
+        .map_err(|_err| wasm_error!("Failed to deserialize the private event."))?;
+
+    let mut recipients = private_event.recipients(
+        event_hash.clone().into(),
+        private_event_entry.0.author.clone(),
+        private_event_entry.0.payload.timestamp,
+    )?;
+
+    recipients.insert(private_event_entry.0.author);
+
+    let my_pub_key = agent_info()?.agent_initial_pubkey;
+
+    let recipients: BTreeSet<AgentPubKey> = recipients
+        .into_iter()
+        .filter(|agent| agent.ne(&my_pub_key))
+        .collect();
+
+    let message = Message {
+        private_events: vec![],
+        acknowledgements: vec![acknowledgement],
+        events_sent_to_recipients: vec![],
+    };
+
+    if recipients.len() > 0 {
+        info!(
+            "Sending acknowledgement for entry {} to {:?}.",
+            event_hash, recipients
+        );
+
+        send_remote_signal(
+            SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                message.clone(),
+            ))
+            .map_err(|err| wasm_error!(err))?,
+            recipients.clone().into_iter().collect(),
         )?;
 
-        recipients.insert(private_event_entry.0.author);
-
-        let my_pub_key = agent_info()?.agent_initial_pubkey;
-
-        let recipients: BTreeSet<AgentPubKey> = recipients
-            .into_iter()
-            .filter(|agent| agent.ne(&my_pub_key))
-            .collect();
-
-        let message = Message {
-            private_events: vec![],
-            acknowledgements: vec![acknowledgement],
-            events_sent_to_recipients: vec![],
-        };
-
-        if recipients.len() > 0 {
-            info!(
-                "Sending acknowledgement for entry {} to {:?}.",
-                event_hash, recipients
-            );
-
-            send_remote_signal(
-                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
-                    message.clone(),
-                ))
-                .map_err(|err| wasm_error!(err))?,
-                recipients.clone().into_iter().collect(),
-            )?;
-
-            send_async_message(recipients, format!("{event_hash}/acknowledgement"), message)?;
-        }
+        send_async_message(recipients, format!("{event_hash}/acknowledgement"), message)?;
     }
 
     Ok(())
