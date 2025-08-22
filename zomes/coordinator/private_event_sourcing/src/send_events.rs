@@ -202,7 +202,7 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             let event_sent_to_recipients = EventSentToRecipients(signed);
 
             let message = Message {
-                private_events: vec![private_event_entry],
+                private_events: vec![private_event_entry.clone()],
                 events_sent_to_recipients: vec![event_sent_to_recipients.clone()],
                 acknowledgements: vec![],
             };
@@ -222,6 +222,21 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
             }
+        }
+
+        if private_event.adds_new_recipients_for_other_events(
+            event_hash.clone().into(),
+            private_event_entry.0.author.clone(),
+            private_event_entry.0.payload.timestamp,
+        )? {
+            let entries = query_private_event_entries(())?;
+            let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
+            let acknowledgements_entries = query_acknowledgement_entries(())?;
+            resend_events_if_necessary::<T>(
+                &entries,
+                &events_sent_to_recipients_entries,
+                &acknowledgements_entries,
+            )?;
         }
     }
 

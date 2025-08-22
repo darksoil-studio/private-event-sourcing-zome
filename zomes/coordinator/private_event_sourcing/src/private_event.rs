@@ -36,6 +36,16 @@ pub trait PrivateEvent:
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<BTreeSet<AgentPubKey>>;
+
+    /// Whether creating this event adds new recipients to old events
+    /// When this is true, the recipients for all existing events will be recalculated,
+    /// and the events with new recipients will be sent to these new recipients
+    fn adds_new_recipients_for_other_events(
+        &self,
+        event_hash: EntryHash,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<bool>;
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {

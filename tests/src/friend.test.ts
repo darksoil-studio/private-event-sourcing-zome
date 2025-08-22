@@ -1,5 +1,5 @@
-import { dhtSync, pause, runScenario } from '@holochain/tryorama';
 import { toPromise } from '@darksoil-studio/holochain-signals';
+import { dhtSync, pause, runScenario } from '@holochain/tryorama';
 import { assert, expect, test } from 'vitest';
 
 import { setup, waitUntil } from './setup.js';
@@ -29,6 +29,6 @@ test('a shared entry gets eventually synchronized with a new recipient', async (
 		await waitUntil(async () => {
 			const privateEvents = await toPromise(carol.store.privateEvents);
 			return Object.keys(privateEvents).length === 1;
-		}, 60_000 * 5);
+		}, 10_000);
 	});
 });
