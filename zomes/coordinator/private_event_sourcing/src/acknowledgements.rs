@@ -171,11 +171,11 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
 }
 
 pub fn receive_acknowledgements<T: PrivateEvent>(
+    current_events: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     provenance: AgentPubKey,
     acknowledgements: Vec<Acknowledgement>,
 ) -> ExternResult<()> {
     let current_acknowledgements = query_acknowledgement_entries(())?;
-    let current_events = query_private_event_entries(())?;
 
     for acknowledgement in acknowledgements {
         if current_acknowledgements

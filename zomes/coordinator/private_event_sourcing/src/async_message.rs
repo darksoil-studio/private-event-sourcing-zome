@@ -3,8 +3,8 @@ use private_event_sourcing_integrity::Message;
 use send_async_message_zome_trait::SendAsyncMessageInput;
 
 use crate::{
-    events_sent_to_recipients::receive_events_sent_to_recipients, receive_acknowledgements,
-    receive_private_events, PrivateEvent,
+    events_sent_to_recipients::receive_events_sent_to_recipients, query_private_event_entries,
+    receive_acknowledgements, receive_private_events, PrivateEvent,
 };
 
 fn async_message_zome() -> Option<ZomeName> {
@@ -45,20 +45,37 @@ pub fn receive_message<T: PrivateEvent>(
 ) -> ExternResult<()> {
     debug!("[receive_message] start.");
 
+    let private_event_entries = query_private_event_entries(())?;
+
     let message_count = message.private_events.len();
 
-    receive_private_events::<T>(provenance.clone(), message.private_events)?;
+    receive_private_events::<T>(
+        &private_event_entries,
+        provenance.clone(),
+        message.private_events,
+    )?;
     debug!(
         "[receive_message] received {} private events.",
         message_count
     );
 
     let count = message.events_sent_to_recipients.len();
-    receive_events_sent_to_recipients::<T>(provenance.clone(), message.events_sent_to_recipients)?;
-    debug!("[receive_message] received {} events_sent_to_recipients.", count);
+    receive_events_sent_to_recipients::<T>(
+        &private_event_entries,
+        provenance.clone(),
+        message.events_sent_to_recipients,
+    )?;
+    debug!(
+        "[receive_message] received {} events_sent_to_recipients.",
+        count
+    );
 
     let count = message.acknowledgements.len();
-    receive_acknowledgements::<T>(provenance.clone(), message.acknowledgements)?;
+    receive_acknowledgements::<T>(
+        &private_event_entries,
+        provenance.clone(),
+        message.acknowledgements,
+    )?;
     debug!("[receive_message] received {} acknowledgements.", count);
 
     Ok(())

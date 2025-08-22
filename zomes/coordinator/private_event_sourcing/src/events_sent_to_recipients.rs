@@ -3,16 +3,14 @@ use std::collections::BTreeMap;
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
-use crate::{
-    query_event_histories, query_private_event_entries, utils::create_relaxed, PrivateEvent,
-};
+use crate::{query_event_histories, utils::create_relaxed, PrivateEvent};
 
 pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
+    current_events: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     _provenance: AgentPubKey,
     events_sent_to_recipients: Vec<EventSentToRecipients>,
 ) -> ExternResult<()> {
     let current_events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
-    let current_events = query_private_event_entries(())?;
 
     for event_sent_to_recipients in events_sent_to_recipients {
         if current_events_sent_to_recipients

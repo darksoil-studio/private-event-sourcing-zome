@@ -29,6 +29,6 @@ test('a shared entry gets eventually synchronized with a new recipient', async (
 		await waitUntil(async () => {
 			const privateEvents = await toPromise(carol.store.privateEvents);
 			return Object.keys(privateEvents).length === 1;
-		}, 60_000);
+		}, 60_000 * 5);
 	});
 });

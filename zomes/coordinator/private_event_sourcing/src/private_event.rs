@@ -111,13 +111,12 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
 }
 
 pub fn receive_private_events<T: PrivateEvent>(
+    my_private_event_entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     provenance: AgentPubKey,
     private_event_entries: Vec<PrivateEventEntry>,
 ) -> ExternResult<()> {
     debug!("[receive_private_events/start]");
     // check_is_linked_device(provenance)?;
-
-    let my_private_event_entries = query_private_event_entries(())?;
 
     let mut ordered_their_private_event_entries: Vec<PrivateEventEntry> = private_event_entries;
     ordered_their_private_event_entries.sort_by_key(|e| e.0.payload.timestamp);
@@ -127,7 +126,7 @@ pub fn receive_private_events<T: PrivateEvent>(
     for private_event_entry in ordered_their_private_event_entries {
         let entry_hash = EntryHashB64::from(hash_entry(&private_event_entry)?);
         if let Some(event) = my_private_event_entries.get(&entry_hash) {
-            // We already have this message committed
+            // We already have this event
             if event.0.author.ne(&my_pub_key) {
                 send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
             }
