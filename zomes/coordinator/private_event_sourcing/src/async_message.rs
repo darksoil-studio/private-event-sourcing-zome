@@ -45,19 +45,19 @@ pub fn receive_message<T: PrivateEvent>(
 ) -> ExternResult<()> {
     debug!("[receive_message] start.");
 
-    let private_event_entries = query_private_event_entries(())?;
+    let mut private_event_entries = query_private_event_entries(())?;
 
-    let message_count = message.private_events.len();
-
-    receive_private_events::<T>(
+    let mut new_events = receive_private_events::<T>(
         &private_event_entries,
         provenance.clone(),
         message.private_events,
     )?;
     debug!(
-        "[receive_message] received {} private events.",
-        message_count
+        "[receive_message] received {} new private events.",
+        new_events.len()
     );
+
+    private_event_entries.append(&mut new_events);
 
     let count = message.events_sent_to_recipients.len();
     receive_events_sent_to_recipients::<T>(

@@ -124,7 +124,7 @@ pub fn receive_private_events<T: PrivateEvent>(
     my_private_event_entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     provenance: AgentPubKey,
     private_event_entries: Vec<PrivateEventEntry>,
-) -> ExternResult<()> {
+) -> ExternResult<BTreeMap<EntryHashB64, PrivateEventEntry>> {
     debug!("[receive_private_events/start]");
     // check_is_linked_device(provenance)?;
 
@@ -132,6 +132,8 @@ pub fn receive_private_events<T: PrivateEvent>(
     ordered_their_private_event_entries.sort_by_key(|e| e.0.payload.timestamp);
 
     let my_pub_key = agent_info()?.agent_initial_pubkey;
+
+    let mut new_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = BTreeMap::new();
 
     for private_event_entry in ordered_their_private_event_entries {
         let entry_hash = EntryHashB64::from(hash_entry(&private_event_entry)?);
@@ -150,6 +152,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
                 create_relaxed(app_entry)?;
                 info!("Received a PrivateEvent {entry_hash}.");
+                new_entries.insert(entry_hash, private_event_entry);
             }
             Ok(ValidateCallbackResult::Invalid(reason)) => {
                 warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
@@ -183,7 +186,7 @@ pub fn receive_private_events<T: PrivateEvent>(
             }
         }
     }
-    Ok(())
+    Ok(new_entries)
 }
 
 pub fn query_private_event_entries_by_type(
