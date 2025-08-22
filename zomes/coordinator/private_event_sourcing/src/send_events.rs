@@ -1,24 +1,34 @@
+use std::collections::BTreeMap;
+
 use hdk::prelude::*;
 use private_event_sourcing_integrity::{
-    EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message, SignedEntry,
+    Acknowledgement, EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message,
+    PrivateEventEntry, SignedEntry,
 };
 
 use crate::{
-    acknowledgements::query_acknowledgements_by_agents,   create_acknowledgements_for, events_sent_to_recipients::{
-        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
-    }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
+    compute_acknowledgements_by_agents, create_acknowledgements_for,
+    events_sent_to_recipients::{
+        compute_events_sent_to_recipients, query_events_sent_to_recipients_entries,
+    },
+    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
+    query_private_event_entry, send_async_message,
+    utils::create_relaxed,
+    PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
 const INTERVAL_RESEND_MS: i64 = 1000 * 60 * 60 * 24 * 1000; // 1000 days
 
-pub fn resend_events_if_necessary<T: PrivateEvent>() -> ExternResult<()> {
+pub fn resend_events_if_necessary<T: PrivateEvent>(
+    entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
+    events_sent_to_recipients_entries: &Vec<EventSentToRecipients>,
+    acknowledgements_entries: &Vec<Acknowledgement>,
+) -> ExternResult<()> {
     debug!("[send_events] Sending events to linked devices and recipients if necessary.");
 
-    let entries = query_private_event_entries(())?;
-    let events_sent_to_recipients = query_events_sent_to_recipients()?;
-    let acknowledgements = query_acknowledgements_by_agents()?;
-    let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
-    let acknowledgements_entries = query_acknowledgement_entries(())?;
+    let events_sent_to_recipients =
+        compute_events_sent_to_recipients(events_sent_to_recipients_entries.clone())?;
+    let acknowledgements = compute_acknowledgements_by_agents(acknowledgements_entries)?;
 
     let my_linked_devices = query_my_linked_devices()?;
 
@@ -114,7 +124,7 @@ pub fn resend_events_if_necessary<T: PrivateEvent>() -> ExternResult<()> {
             events_sent_to_recipients_for_this_entry.push(event_sent_to_recipients.clone());
 
             let message = Message {
-                private_events: vec![private_event_entry],
+                private_events: vec![private_event_entry.clone()],
                 events_sent_to_recipients: events_sent_to_recipients_for_this_entry,
                 acknowledgements: acknowledgements_for_this_entry,
             };
@@ -129,7 +139,7 @@ pub fn resend_events_if_necessary<T: PrivateEvent>() -> ExternResult<()> {
 
             if let Ok(()) = send_async_message(
                 recipients_to_send.clone(),
-                EntryHashB64::from(event_hash).to_string(),
+                EntryHashB64::from(event_hash.clone()).to_string(),
                 message,
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;

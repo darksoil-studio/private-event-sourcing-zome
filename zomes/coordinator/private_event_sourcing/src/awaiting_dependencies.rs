@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
@@ -7,12 +9,13 @@ use crate::{
     query_private_event_entries, utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
-pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>() -> ExternResult<()> {
+pub fn attempt_commit_awaiting_deps_entries<T: PrivateEvent>(
+    private_event_entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
+) -> ExternResult<()> {
     let mut entries: Vec<PrivateEventEntry> = query_awaiting_deps_private_event_entries()?;
 
     entries.sort_by_key(|e1| e1.0.payload.timestamp);
 
-    let private_event_entries = query_private_event_entries(())?;
     for private_event_entry in entries {
         let entry_hash = hash_entry(&private_event_entry)?;
 

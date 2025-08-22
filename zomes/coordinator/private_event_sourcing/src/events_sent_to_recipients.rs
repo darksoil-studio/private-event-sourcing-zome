@@ -53,10 +53,9 @@ pub fn receive_events_sent_to_recipients<T: PrivateEvent>(
     Ok(())
 }
 
-pub fn query_events_sent_to_recipients(
+pub fn compute_events_sent_to_recipients(
+    mut events_sent_to_recipients: Vec<EventSentToRecipients>,
 ) -> ExternResult<BTreeMap<EntryHash, BTreeMap<AgentPubKey, Timestamp>>> {
-    let mut events_sent_to_recipients = query_events_sent_to_recipients_entries(())?;
-
     events_sent_to_recipients.sort_by_key(|e| e.0.payload.timestamp.clone());
 
     let mut all_events: BTreeMap<EntryHash, BTreeMap<AgentPubKey, Timestamp>> = BTreeMap::new();
