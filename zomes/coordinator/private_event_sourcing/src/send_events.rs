@@ -229,6 +229,7 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             private_event_entry.0.author.clone(),
             private_event_entry.0.payload.timestamp,
         )? {
+            info!("Created an entry that may add new recipients for other events.");
             let entries = query_private_event_entries(())?;
             let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
             let acknowledgements_entries = query_acknowledgement_entries(())?;
@@ -241,10 +242,6 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
     }
 
     create_acknowledgements_for::<T>(event_hashes)?;
-
-    // This makes the stress test fail
-    // Because over time a bunch of queries accumulate in memory
-    // attempt_commit_awaiting_deps_entries::<T>()?;
 
     Ok(())
 }
