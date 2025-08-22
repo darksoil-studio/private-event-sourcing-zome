@@ -35,7 +35,7 @@ impl PrivateEvent for Event {
 
                 Ok(recipients)
             }
-            _ => Ok(BTreeSet::new()),
+            _ => Ok(BTreeSet::new())
         }
     }
 
