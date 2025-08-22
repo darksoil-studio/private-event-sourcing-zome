@@ -154,7 +154,12 @@
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 
 <span class="kw">use crate</span>::{
@@ -163,12 +168,13 @@
     query_private_event_entries, utils::create_relaxed, validate_private_event_entry, PrivateEvent,
 };
 
-<span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
+<span class="kw">pub fn </span>attempt_commit_awaiting_deps_entries&lt;T: PrivateEvent&gt;(
+    private_event_entries: <span class="kw-2">&amp;</span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
+) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;PrivateEventEntry&gt; = query_awaiting_deps_private_event_entries()<span class="question-mark">?</span>;
 
     entries.sort_by_key(|e1| e1.<span class="number">0</span>.payload.timestamp);
 
-    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
     <span class="kw">for </span>private_event_entry <span class="kw">in </span>entries {
         <span class="kw">let </span>entry_hash = hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>;
 

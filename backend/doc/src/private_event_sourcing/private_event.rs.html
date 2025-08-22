@@ -300,7 +300,19 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{PrivateEventContent, <span class="kw-2">*</span>};
 <span class="kw">use </span>serde::de::DeserializeOwned;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -338,6 +350,16 @@
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -&gt; ExternResult&lt;BTreeSet&lt;AgentPubKey&gt;&gt;;
+
+    <span class="doccomment">/// Whether creating this event adds new recipients to old events
+    /// When this is true, the recipients for all existing events will be recalculated,
+    /// and the events with new recipients will be sent to these new recipients
+    </span><span class="kw">fn </span>adds_new_recipients_for_other_events(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        event_hash: EntryHash,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -&gt; ExternResult&lt;bool&gt;;
 }
 
 <span class="kw">pub fn </span>create_private_event&lt;T: PrivateEvent&gt;(private_event: T) -&gt; ExternResult&lt;EntryHash&gt; {
@@ -413,23 +435,24 @@
 }
 
 <span class="kw">pub fn </span>receive_private_events&lt;T: PrivateEvent&gt;(
+    my_private_event_entries: <span class="kw-2">&amp;</span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
     provenance: AgentPubKey,
     private_event_entries: Vec&lt;PrivateEventEntry&gt;,
-) -&gt; ExternResult&lt;()&gt; {
+) -&gt; ExternResult&lt;BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;&gt; {
     <span class="macro">debug!</span>(<span class="string">"[receive_private_events/start]"</span>);
     <span class="comment">// check_is_linked_device(provenance)?;
 
-    </span><span class="kw">let </span>my_private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
-
-    <span class="kw">let </span><span class="kw-2">mut </span>ordered_their_private_event_entries: Vec&lt;PrivateEventEntry&gt; = private_event_entries;
+    </span><span class="kw">let </span><span class="kw-2">mut </span>ordered_their_private_event_entries: Vec&lt;PrivateEventEntry&gt; = private_event_entries;
     ordered_their_private_event_entries.sort_by_key(|e| e.<span class="number">0</span>.payload.timestamp);
 
     <span class="kw">let </span>my_pub_key = agent_info()<span class="question-mark">?</span>.agent_initial_pubkey;
 
+    <span class="kw">let </span><span class="kw-2">mut </span>new_entries: BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt; = BTreeMap::new();
+
     <span class="kw">for </span>private_event_entry <span class="kw">in </span>ordered_their_private_event_entries {
         <span class="kw">let </span>entry_hash = EntryHashB64::from(hash_entry(<span class="kw-2">&amp;</span>private_event_entry)<span class="question-mark">?</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(event) = my_private_event_entries.get(<span class="kw-2">&amp;</span>entry_hash) {
-            <span class="comment">// We already have this message committed
+            <span class="comment">// We already have this event
             </span><span class="kw">if </span>event.<span class="number">0</span>.author.ne(<span class="kw-2">&amp;</span>my_pub_key) {
                 send_acknowledgement_for_event_to_recipient::&lt;T&gt;(<span class="kw-2">&amp;</span>entry_hash, <span class="kw-2">&amp;</span>provenance)<span class="question-mark">?</span>;
             }
@@ -443,6 +466,7 @@
                 <span class="kw">let </span>app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
                 create_relaxed(app_entry)<span class="question-mark">?</span>;
                 <span class="macro">info!</span>(<span class="string">"Received a PrivateEvent {entry_hash}."</span>);
+                new_entries.insert(entry_hash, private_event_entry);
             }
             <span class="prelude-val">Ok</span>(ValidateCallbackResult::Invalid(reason)) =&gt; {
                 <span class="macro">warn!</span>(<span class="string">"Received an invalid PrivateEvent {entry_hash}: discarding."</span>);
@@ -476,7 +500,7 @@
             }
         }
     }
-    <span class="prelude-val">Ok</span>(())
+    <span class="prelude-val">Ok</span>(new_entries)
 }
 
 <span class="kw">pub fn </span>query_private_event_entries_by_type(

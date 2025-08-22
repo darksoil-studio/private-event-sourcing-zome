@@ -252,27 +252,24 @@
 <a href="#251" id="251">251</a>
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#254" id="254">254</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::<span class="kw-2">*</span>;
 
 <span class="kw">use crate</span>::{
-    query_event_histories, query_private_event, query_private_event_entries,
-    query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent,
-    PrivateEventSourcingRemoteSignal,
+    query_event_histories, query_private_event_entries, query_private_event_entry,
+    send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
-<span class="kw">pub fn </span>create_pending_acknowledgements&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    <span class="kw">let </span>private_event_entries = query_private_event_entries(())<span class="question-mark">?</span>;
-    <span class="kw">let </span>acknowledgement_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
-
+<span class="kw">pub fn </span>create_pending_acknowledgements&lt;T: PrivateEvent&gt;(
+    private_event_entries: <span class="kw-2">&amp;</span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
+    acknowledgement_entries: <span class="kw-2">&amp;</span>Vec&lt;Acknowledgement&gt;,
+) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">for </span>(event_hash, private_event_entry) <span class="kw">in </span>private_event_entries {
         create_acknowledgements_for_event::&lt;T&gt;(
-            event_hash.into(),
-            private_event_entry,
+            event_hash.clone().into(),
+            private_event_entry.clone(),
             <span class="kw-2">&amp;</span>acknowledgement_entries,
         )<span class="question-mark">?</span>;
     }
@@ -428,11 +425,11 @@
 }
 
 <span class="kw">pub fn </span>receive_acknowledgements&lt;T: PrivateEvent&gt;(
+    current_events: <span class="kw-2">&amp;</span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
     provenance: AgentPubKey,
     acknowledgements: Vec&lt;Acknowledgement&gt;,
 ) -&gt; ExternResult&lt;()&gt; {
     <span class="kw">let </span>current_acknowledgements = query_acknowledgement_entries(())<span class="question-mark">?</span>;
-    <span class="kw">let </span>current_events = query_private_event_entries(())<span class="question-mark">?</span>;
 
     <span class="kw">for </span>acknowledgement <span class="kw">in </span>acknowledgements {
         <span class="kw">if </span>current_acknowledgements
@@ -468,17 +465,16 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">pub fn </span>query_acknowledgements_by_agents() -&gt; ExternResult&lt;BTreeMap&lt;AgentPubKey, BTreeSet&lt;EntryHash&gt;&gt;&gt;
-{
-    <span class="kw">let </span>acknowledgements = query_acknowledgement_entries(())<span class="question-mark">?</span>;
-
+<span class="kw">pub fn </span>compute_acknowledgements_by_agents(
+    acknowledgements: <span class="kw-2">&amp;</span>Vec&lt;Acknowledgement&gt;,
+) -&gt; ExternResult&lt;BTreeMap&lt;AgentPubKey, BTreeSet&lt;EntryHash&gt;&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>all_acknowledgements: BTreeMap&lt;AgentPubKey, BTreeSet&lt;EntryHash&gt;&gt; = BTreeMap::new();
 
     <span class="kw">for </span>acknowledgement <span class="kw">in </span>acknowledgements {
         all_acknowledgements
-            .entry(acknowledgement.<span class="number">0</span>.author)
+            .entry(acknowledgement.<span class="number">0</span>.author.clone())
             .or_insert(BTreeSet::new())
-            .insert(acknowledgement.<span class="number">0</span>.payload.content.private_event_hash);
+            .insert(acknowledgement.<span class="number">0</span>.payload.content.private_event_hash.clone());
     }
 
     <span class="prelude-val">Ok</span>(all_acknowledgements)

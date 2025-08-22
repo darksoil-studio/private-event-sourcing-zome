@@ -247,7 +247,17 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a></pre></div><pre class="rust"><code><span class="kw">use </span>events_sent_to_recipients::query_events_sent_to_recipients_entries;
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>strum::IntoStaticStr;
 
 <span class="kw">pub use </span>acknowledgements::<span class="kw-2">*</span>;
@@ -274,9 +284,17 @@
 <span class="kw">pub use </span>private_event_proc_macro::<span class="kw-2">*</span>;
 
 <span class="kw">pub fn </span>scheduled_tasks&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
-    resend_events_if_necessary::&lt;T&gt;()<span class="question-mark">?</span>;
-    attempt_commit_awaiting_deps_entries::&lt;T&gt;()<span class="question-mark">?</span>;
-    create_pending_acknowledgements::&lt;T&gt;()<span class="question-mark">?</span>;
+    <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+
+    resend_events_if_necessary::&lt;T&gt;(
+        <span class="kw-2">&amp;</span>entries,
+        <span class="kw-2">&amp;</span>events_sent_to_recipients_entries,
+        <span class="kw-2">&amp;</span>acknowledgements_entries,
+    )<span class="question-mark">?</span>;
+    attempt_commit_awaiting_deps_entries::&lt;T&gt;(<span class="kw-2">&amp;</span>entries)<span class="question-mark">?</span>;
+    create_pending_acknowledgements::&lt;T&gt;(<span class="kw-2">&amp;</span>entries, <span class="kw-2">&amp;</span>acknowledgements_entries)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 

@@ -247,27 +247,62 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>hdk::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>private_event_sourcing_integrity::{
-    EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message, SignedEntry,
+    Acknowledgement, EntryTypes, EventSentToRecipients, EventSentToRecipientsContent, Message,
+    PrivateEventEntry, SignedEntry,
 };
 
 <span class="kw">use crate</span>::{
-    acknowledgements::query_acknowledgements_by_agents,   create_acknowledgements_for, events_sent_to_recipients::{
-        query_events_sent_to_recipients, query_events_sent_to_recipients_entries,
-    }, query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries, query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal
+    compute_acknowledgements_by_agents, create_acknowledgements_for,
+    events_sent_to_recipients::{
+        compute_events_sent_to_recipients, query_events_sent_to_recipients_entries,
+    },
+    query_acknowledgement_entries, query_my_linked_devices, query_private_event_entries,
+    query_private_event_entry, send_async_message,
+    utils::create_relaxed,
+    PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
 <span class="kw">const </span>INTERVAL_RESEND_MS: i64 = <span class="number">1000 </span>* <span class="number">60 </span>* <span class="number">60 </span>* <span class="number">24 </span>* <span class="number">1000</span>; <span class="comment">// 1000 days
 
-</span><span class="kw">pub fn </span>resend_events_if_necessary&lt;T: PrivateEvent&gt;() -&gt; ExternResult&lt;()&gt; {
+</span><span class="kw">pub fn </span>resend_events_if_necessary&lt;T: PrivateEvent&gt;(
+    entries: <span class="kw-2">&amp;</span>BTreeMap&lt;EntryHashB64, PrivateEventEntry&gt;,
+    events_sent_to_recipients_entries: <span class="kw-2">&amp;</span>Vec&lt;EventSentToRecipients&gt;,
+    acknowledgements_entries: <span class="kw-2">&amp;</span>Vec&lt;Acknowledgement&gt;,
+) -&gt; ExternResult&lt;()&gt; {
     <span class="macro">debug!</span>(<span class="string">"[send_events] Sending events to linked devices and recipients if necessary."</span>);
 
-    <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
-    <span class="kw">let </span>events_sent_to_recipients = query_events_sent_to_recipients()<span class="question-mark">?</span>;
-    <span class="kw">let </span>acknowledgements = query_acknowledgements_by_agents()<span class="question-mark">?</span>;
-    <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
-    <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+    <span class="kw">let </span>events_sent_to_recipients =
+        compute_events_sent_to_recipients(events_sent_to_recipients_entries.clone())<span class="question-mark">?</span>;
+    <span class="kw">let </span>acknowledgements = compute_acknowledgements_by_agents(acknowledgements_entries)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>my_linked_devices = query_my_linked_devices()<span class="question-mark">?</span>;
 
@@ -363,7 +398,7 @@
             events_sent_to_recipients_for_this_entry.push(event_sent_to_recipients.clone());
 
             <span class="kw">let </span>message = Message {
-                private_events: <span class="macro">vec!</span>[private_event_entry],
+                private_events: <span class="macro">vec!</span>[private_event_entry.clone()],
                 events_sent_to_recipients: events_sent_to_recipients_for_this_entry,
                 acknowledgements: acknowledgements_for_this_entry,
             };
@@ -378,7 +413,7 @@
 
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = send_async_message(
                 recipients_to_send.clone(),
-                EntryHashB64::from(event_hash).to_string(),
+                EntryHashB64::from(event_hash.clone()).to_string(),
                 message,
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))<span class="question-mark">?</span>;
@@ -441,7 +476,7 @@
             <span class="kw">let </span>event_sent_to_recipients = EventSentToRecipients(signed);
 
             <span class="kw">let </span>message = Message {
-                private_events: <span class="macro">vec!</span>[private_event_entry],
+                private_events: <span class="macro">vec!</span>[private_event_entry.clone()],
                 events_sent_to_recipients: <span class="macro">vec!</span>[event_sent_to_recipients.clone()],
                 acknowledgements: <span class="macro">vec!</span>[],
             };
@@ -461,6 +496,21 @@
             ) {
                 create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))<span class="question-mark">?</span>;
             }
+        }
+
+        <span class="kw">if </span>private_event.adds_new_recipients_for_other_events(
+            event_hash.clone().into(),
+            private_event_entry.<span class="number">0</span>.author.clone(),
+            private_event_entry.<span class="number">0</span>.payload.timestamp,
+        )<span class="question-mark">? </span>{
+            <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
+            <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+            <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+            resend_events_if_necessary::&lt;T&gt;(
+                <span class="kw-2">&amp;</span>entries,
+                <span class="kw-2">&amp;</span>events_sent_to_recipients_entries,
+                <span class="kw-2">&amp;</span>acknowledgements_entries,
+            )<span class="question-mark">?</span>;
         }
     }
 
