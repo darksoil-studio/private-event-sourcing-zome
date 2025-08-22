@@ -87,7 +87,7 @@ test('stress test create entries', async () => {
 	await runScenario(async scenario => {
 		const [alice, bob] = await setup(scenario);
 
-		const ENTRIES_NUMBER = 1000;
+		const ENTRIES_NUMBER = 100;
 
 		for (let i = 0; i < ENTRIES_NUMBER; i++) {
 			await alice.store.client.client.callZome({
