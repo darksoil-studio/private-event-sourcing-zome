@@ -28,18 +28,6 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #[hdk_extern]
-        pub fn attempt_commit_awaiting_deps_entries() -> ExternResult<()> {
-            private_event_sourcing::attempt_commit_awaiting_deps_entries::<#ident>()?;
-
-            Ok(())
-        }
-
-        #[hdk_extern]
-        pub fn resend_events_if_necessary() -> ExternResult<()> {
-            private_event_sourcing::resend_events_if_necessary::<#ident>()
-        }
-
-        #[hdk_extern]
         pub fn send_new_events(events_hashes: BTreeSet<EntryHash>) -> ExternResult<()> {
             private_event_sourcing::send_new_events::<#ident>(events_hashes)
         }
@@ -55,7 +43,7 @@ pub fn private_event(_attrs: TokenStream, input: TokenStream) -> TokenStream {
                 error!("Failed to perform scheduled tasks: {err:?}");
             }
 
-            Some(Schedule::Persisted("*/55 * * * * * *".into())) // Every 55 seconds
+            Some(Schedule::Persisted("0 */5 * * * * *".into())) // Every 5 minutes
         }
     };
     output.into()

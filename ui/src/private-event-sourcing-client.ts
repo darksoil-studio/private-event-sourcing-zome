@@ -19,10 +19,6 @@ export class PrivateEventSourcingClient<ADDITIONAL_SIGNALS> extends ZomeClient<
 		super(client, roleName, zomeName);
 	}
 
-	resendEventsIfNecessary(): Promise<void> {
-		return this.callZome('resend_events_if_necessary', undefined);
-	}
-
 	queryPrivateEventEntries(): Promise<Record<EntryHashB64, PrivateEventEntry>> {
 		return this.callZome('query_private_event_entries', undefined);
 	}

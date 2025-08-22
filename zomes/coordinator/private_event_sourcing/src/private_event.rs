@@ -36,6 +36,16 @@ pub trait PrivateEvent:
         author: AgentPubKey,
         timestamp: Timestamp,
     ) -> ExternResult<BTreeSet<AgentPubKey>>;
+
+    /// Whether creating this event adds new recipients to old events
+    /// When this is true, the recipients for all existing events will be recalculated,
+    /// and the events with new recipients will be sent to these new recipients
+    fn adds_new_recipients_for_other_events(
+        &self,
+        event_hash: EntryHash,
+        author: AgentPubKey,
+        timestamp: Timestamp,
+    ) -> ExternResult<bool>;
 }
 
 pub fn create_private_event<T: PrivateEvent>(private_event: T) -> ExternResult<EntryHash> {
@@ -111,23 +121,24 @@ pub fn validate_private_event_entry<T: PrivateEvent>(
 }
 
 pub fn receive_private_events<T: PrivateEvent>(
+    my_private_event_entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     provenance: AgentPubKey,
     private_event_entries: Vec<PrivateEventEntry>,
-) -> ExternResult<()> {
+) -> ExternResult<BTreeMap<EntryHashB64, PrivateEventEntry>> {
     debug!("[receive_private_events/start]");
     // check_is_linked_device(provenance)?;
-
-    let my_private_event_entries = query_private_event_entries(())?;
 
     let mut ordered_their_private_event_entries: Vec<PrivateEventEntry> = private_event_entries;
     ordered_their_private_event_entries.sort_by_key(|e| e.0.payload.timestamp);
 
     let my_pub_key = agent_info()?.agent_initial_pubkey;
 
+    let mut new_entries: BTreeMap<EntryHashB64, PrivateEventEntry> = BTreeMap::new();
+
     for private_event_entry in ordered_their_private_event_entries {
         let entry_hash = EntryHashB64::from(hash_entry(&private_event_entry)?);
         if let Some(event) = my_private_event_entries.get(&entry_hash) {
-            // We already have this message committed
+            // We already have this event
             if event.0.author.ne(&my_pub_key) {
                 send_acknowledgement_for_event_to_recipient::<T>(&entry_hash, &provenance)?;
             }
@@ -141,6 +152,7 @@ pub fn receive_private_events<T: PrivateEvent>(
                 let app_entry = EntryTypes::PrivateEvent(private_event_entry.clone());
                 create_relaxed(app_entry)?;
                 info!("Received a PrivateEvent {entry_hash}.");
+                new_entries.insert(entry_hash, private_event_entry);
             }
             Ok(ValidateCallbackResult::Invalid(reason)) => {
                 warn!("Received an invalid PrivateEvent {entry_hash}: discarding.");
@@ -174,7 +186,7 @@ pub fn receive_private_events<T: PrivateEvent>(
             }
         }
     }
-    Ok(())
+    Ok(new_entries)
 }
 
 pub fn query_private_event_entries_by_type(
