@@ -4,19 +4,18 @@ use hdk::prelude::*;
 use private_event_sourcing_integrity::*;
 
 use crate::{
-    query_event_histories, query_private_event, query_private_event_entries,
-    query_private_event_entry, send_async_message, utils::create_relaxed, PrivateEvent,
-    PrivateEventSourcingRemoteSignal,
+    query_event_histories, query_private_event_entries, query_private_event_entry,
+    send_async_message, utils::create_relaxed, PrivateEvent, PrivateEventSourcingRemoteSignal,
 };
 
-pub fn create_pending_acknowledgements<T: PrivateEvent>() -> ExternResult<()> {
-    let private_event_entries = query_private_event_entries(())?;
-    let acknowledgement_entries = query_acknowledgement_entries(())?;
-
+pub fn create_pending_acknowledgements<T: PrivateEvent>(
+    private_event_entries: &BTreeMap<EntryHashB64, PrivateEventEntry>,
+    acknowledgement_entries: &Vec<Acknowledgement>,
+) -> ExternResult<()> {
     for (event_hash, private_event_entry) in private_event_entries {
         create_acknowledgements_for_event::<T>(
-            event_hash.into(),
-            private_event_entry,
+            event_hash.clone().into(),
+            private_event_entry.clone(),
             &acknowledgement_entries,
         )?;
     }
@@ -172,11 +171,11 @@ pub fn send_acknowledgement_for_event_to_recipient<T: PrivateEvent>(
 }
 
 pub fn receive_acknowledgements<T: PrivateEvent>(
+    current_events: &BTreeMap<EntryHashB64, PrivateEventEntry>,
     provenance: AgentPubKey,
     acknowledgements: Vec<Acknowledgement>,
 ) -> ExternResult<()> {
     let current_acknowledgements = query_acknowledgement_entries(())?;
-    let current_events = query_private_event_entries(())?;
 
     for acknowledgement in acknowledgements {
         if current_acknowledgements
@@ -212,17 +211,16 @@ pub fn receive_acknowledgements<T: PrivateEvent>(
     Ok(())
 }
 
-pub fn query_acknowledgements_by_agents() -> ExternResult<BTreeMap<AgentPubKey, BTreeSet<EntryHash>>>
-{
-    let acknowledgements = query_acknowledgement_entries(())?;
-
+pub fn compute_acknowledgements_by_agents(
+    acknowledgements: &Vec<Acknowledgement>,
+) -> ExternResult<BTreeMap<AgentPubKey, BTreeSet<EntryHash>>> {
     let mut all_acknowledgements: BTreeMap<AgentPubKey, BTreeSet<EntryHash>> = BTreeMap::new();
 
     for acknowledgement in acknowledgements {
         all_acknowledgements
-            .entry(acknowledgement.0.author)
+            .entry(acknowledgement.0.author.clone())
             .or_insert(BTreeSet::new())
-            .insert(acknowledgement.0.payload.content.private_event_hash);
+            .insert(acknowledgement.0.payload.content.private_event_hash.clone());
     }
 
     Ok(all_acknowledgements)

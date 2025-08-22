@@ -1,3 +1,4 @@
+use events_sent_to_recipients::query_events_sent_to_recipients_entries;
 use hdk::prelude::*;
 pub use strum::IntoStaticStr;
 
@@ -25,9 +26,17 @@ pub use async_message::*;
 pub use private_event_proc_macro::*;
 
 pub fn scheduled_tasks<T: PrivateEvent>() -> ExternResult<()> {
-    resend_events_if_necessary::<T>()?;
-    attempt_commit_awaiting_deps_entries::<T>()?;
-    create_pending_acknowledgements::<T>()?;
+    let entries = query_private_event_entries(())?;
+    let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
+    let acknowledgements_entries = query_acknowledgement_entries(())?;
+
+    resend_events_if_necessary::<T>(
+        &entries,
+        &events_sent_to_recipients_entries,
+        &acknowledgements_entries,
+    )?;
+    attempt_commit_awaiting_deps_entries::<T>(&entries)?;
+    create_pending_acknowledgements::<T>(&entries, &acknowledgements_entries)?;
     Ok(())
 }
 

@@ -25,8 +25,6 @@ export class PrivateEventSourcingStore<E> {
 		public client: PrivateEventSourcingClient<object>,
 		public linkedDevicesStore?: LinkedDevicesStore,
 	) {
-		this.client.resendEventsIfNecessary();
-
 		if (linkedDevicesStore) {
 			linkedDevicesStore.client.onSignal(signal => {
 				if (signal.type !== 'LinkCreated') return;

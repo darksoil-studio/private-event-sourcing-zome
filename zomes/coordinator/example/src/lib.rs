@@ -38,6 +38,18 @@ impl PrivateEvent for Event {
             _ => Ok(BTreeSet::new()),
         }
     }
+
+    fn adds_new_recipients_for_other_events(
+        &self,
+        _event_hash: EntryHash,
+        _author: AgentPubKey,
+        _timestamp: Timestamp,
+    ) -> ExternResult<bool> {
+        match self {
+            Event::NewFriend { .. } => Ok(true),
+            _ => Ok(false),
+        }
+    }
 }
 
 #[hdk_extern]
