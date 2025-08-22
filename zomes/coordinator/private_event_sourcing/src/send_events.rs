@@ -52,6 +52,8 @@ pub fn resend_events_if_necessary<T: PrivateEvent>(
         };
         recipients.append(&mut my_linked_devices.clone());
 
+        warn!("recipients {}", recipients.len());
+
         // Filter out the events with acknowledgements from all recipients
         let recipients_without_acknowledgement: BTreeSet<AgentPubKey> = recipients
             .into_iter()
@@ -84,7 +86,7 @@ pub fn resend_events_if_necessary<T: PrivateEvent>(
 
         if !recipients_to_send.is_empty() {
             info!(
-                "Sending private event entry {} to recipients: {:?}.",
+                "Resending private event entry {} to recipients: {:?}.",
                 event_hash, recipients_to_send
             );
 
@@ -163,64 +165,62 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             continue;
         };
 
-        if private_event_entry.0.author.ne(&my_pub_key) {
-            // We don't need to directly send to all recipients another author's event
-            continue;
-        };
-
         let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
             .map_err(|_err| wasm_error!("Failed to deserialize private event"))?;
 
-        // For each event, get the recipients
-        let recipients_result = private_event.recipients(
-            event_hash.clone().into(),
-            private_event_entry.0.author.clone(),
-            private_event_entry.0.payload.timestamp,
-        );
-        let Ok(mut recipients) = recipients_result else {
-            warn!("Error calling PrivateEvent::recipients()");
-            continue;
-        };
-        recipients.append(&mut my_linked_devices.clone());
-
-        let recipients: BTreeSet<AgentPubKey> = recipients
-            .into_iter()
-            .filter(|recipient| my_pub_key.ne(recipient)) // Filter me out
-            .collect();
-
-        if !recipients.is_empty() {
-            info!(
-                "Sending private event entry {} to recipients: {:?}.",
-                event_hash, recipients
+        // We don't need to directly send to all recipients another author's event
+        if private_event_entry.0.author.eq(&my_pub_key) {
+            // For each event, get the recipients
+            let recipients_result = private_event.recipients(
+                event_hash.clone().into(),
+                private_event_entry.0.author.clone(),
+                private_event_entry.0.payload.timestamp,
             );
-
-            let content = EventSentToRecipientsContent {
-                event_hash: event_hash.clone().into(),
-                recipients: recipients.clone(),
+            let Ok(mut recipients) = recipients_result else {
+                warn!("Error calling PrivateEvent::recipients()");
+                continue;
             };
-            let signed = SignedEntry::build(content)?;
-            let event_sent_to_recipients = EventSentToRecipients(signed);
+            recipients.append(&mut my_linked_devices.clone());
 
-            let message = Message {
-                private_events: vec![private_event_entry.clone()],
-                events_sent_to_recipients: vec![event_sent_to_recipients.clone()],
-                acknowledgements: vec![],
-            };
+            let recipients: BTreeSet<AgentPubKey> = recipients
+                .into_iter()
+                .filter(|recipient| my_pub_key.ne(recipient)) // Filter me out
+                .collect();
 
-            send_remote_signal(
-                SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
-                    message.clone(),
-                ))
-                .map_err(|err| wasm_error!(err))?,
-                recipients.clone().into_iter().collect(),
-            )?;
+            if !recipients.is_empty() {
+                info!(
+                    "Sending new private event entry {} to recipients: {:?}.",
+                    event_hash, recipients
+                );
 
-            if let Ok(()) = send_async_message(
-                recipients.clone(),
-                EntryHashB64::from(event_hash.clone()).to_string(),
-                message,
-            ) {
-                create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
+                let content = EventSentToRecipientsContent {
+                    event_hash: event_hash.clone().into(),
+                    recipients: recipients.clone(),
+                };
+                let signed = SignedEntry::build(content)?;
+                let event_sent_to_recipients = EventSentToRecipients(signed);
+
+                let message = Message {
+                    private_events: vec![private_event_entry.clone()],
+                    events_sent_to_recipients: vec![event_sent_to_recipients.clone()],
+                    acknowledgements: vec![],
+                };
+
+                send_remote_signal(
+                    SerializedBytes::try_from(PrivateEventSourcingRemoteSignal::SendMessage(
+                        message.clone(),
+                    ))
+                    .map_err(|err| wasm_error!(err))?,
+                    recipients.clone().into_iter().collect(),
+                )?;
+
+                if let Ok(()) = send_async_message(
+                    recipients.clone(),
+                    EntryHashB64::from(event_hash.clone()).to_string(),
+                    message,
+                ) {
+                    create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
+                }
             }
         }
 
@@ -229,6 +229,8 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
             private_event_entry.0.author.clone(),
             private_event_entry.0.payload.timestamp,
         )? {
+            info!("Entry {} created just now may add new recipients for other events: sending events to new recipients.", event_hash);
+
             let entries = query_private_event_entries(())?;
             let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
             let acknowledgements_entries = query_acknowledgement_entries(())?;
@@ -241,10 +243,6 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
     }
 
     create_acknowledgements_for::<T>(event_hashes)?;
-
-    // This makes the stress test fail
-    // Because over time a bunch of queries accumulate in memory
-    // attempt_commit_awaiting_deps_entries::<T>()?;
 
     Ok(())
 }
