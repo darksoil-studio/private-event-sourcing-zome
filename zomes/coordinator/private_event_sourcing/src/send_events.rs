@@ -52,8 +52,6 @@ pub fn resend_events_if_necessary<T: PrivateEvent>(
         };
         recipients.append(&mut my_linked_devices.clone());
 
-        warn!("recipients {}", recipients.len());
-
         // Filter out the events with acknowledgements from all recipients
         let recipients_without_acknowledgement: BTreeSet<AgentPubKey> = recipients
             .into_iter()
@@ -168,6 +166,25 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
         let private_event = T::try_from(private_event_entry.0.payload.content.event.clone())
             .map_err(|_err| wasm_error!("Failed to deserialize private event"))?;
 
+        // Send first the depenendencies for the new event,
+        // so that they don't end up in the AwaitingDependencies cue
+        if private_event.adds_new_recipients_for_other_events(
+            event_hash.clone().into(),
+            private_event_entry.0.author.clone(),
+            private_event_entry.0.payload.timestamp,
+        )? {
+            info!("Entry {} created just now may add new recipients for other events: sending events to new recipients.", event_hash);
+
+            let entries = query_private_event_entries(())?;
+            let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
+            let acknowledgements_entries = query_acknowledgement_entries(())?;
+            resend_events_if_necessary::<T>(
+                &entries,
+                &events_sent_to_recipients_entries,
+                &acknowledgements_entries,
+            )?;
+        }
+
         // We don't need to directly send to all recipients another author's event
         if private_event_entry.0.author.eq(&my_pub_key) {
             // For each event, get the recipients
@@ -222,23 +239,6 @@ pub fn send_new_events<T: PrivateEvent>(event_hashes: BTreeSet<EntryHash>) -> Ex
                     create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))?;
                 }
             }
-        }
-
-        if private_event.adds_new_recipients_for_other_events(
-            event_hash.clone().into(),
-            private_event_entry.0.author.clone(),
-            private_event_entry.0.payload.timestamp,
-        )? {
-            info!("Entry {} created just now may add new recipients for other events: sending events to new recipients.", event_hash);
-
-            let entries = query_private_event_entries(())?;
-            let events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())?;
-            let acknowledgements_entries = query_acknowledgement_entries(())?;
-            resend_events_if_necessary::<T>(
-                &entries,
-                &events_sent_to_recipients_entries,
-                &acknowledgements_entries,
-            )?;
         }
     }
 
