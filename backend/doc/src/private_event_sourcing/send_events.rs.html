@@ -324,8 +324,6 @@
         };
         recipients.append(<span class="kw-2">&amp;mut </span>my_linked_devices.clone());
 
-        <span class="macro">warn!</span>(<span class="string">"recipients {}"</span>, recipients.len());
-
         <span class="comment">// Filter out the events with acknowledgements from all recipients
         </span><span class="kw">let </span>recipients_without_acknowledgement: BTreeSet&lt;AgentPubKey&gt; = recipients
             .into_iter()
@@ -440,6 +438,25 @@
         <span class="kw">let </span>private_event = T::try_from(private_event_entry.<span class="number">0</span>.payload.content.event.clone())
             .map_err(|_err| <span class="macro">wasm_error!</span>(<span class="string">"Failed to deserialize private event"</span>))<span class="question-mark">?</span>;
 
+        <span class="comment">// Send first the depenendencies for the new event,
+        // so that they don't end up in the AwaitingDependencies cue
+        </span><span class="kw">if </span>private_event.adds_new_recipients_for_other_events(
+            event_hash.clone().into(),
+            private_event_entry.<span class="number">0</span>.author.clone(),
+            private_event_entry.<span class="number">0</span>.payload.timestamp,
+        )<span class="question-mark">? </span>{
+            <span class="macro">info!</span>(<span class="string">"Entry {} created just now may add new recipients for other events: sending events to new recipients."</span>, event_hash);
+
+            <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
+            <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
+            <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
+            resend_events_if_necessary::&lt;T&gt;(
+                <span class="kw-2">&amp;</span>entries,
+                <span class="kw-2">&amp;</span>events_sent_to_recipients_entries,
+                <span class="kw-2">&amp;</span>acknowledgements_entries,
+            )<span class="question-mark">?</span>;
+        }
+
         <span class="comment">// We don't need to directly send to all recipients another author's event
         </span><span class="kw">if </span>private_event_entry.<span class="number">0</span>.author.eq(<span class="kw-2">&amp;</span>my_pub_key) {
             <span class="comment">// For each event, get the recipients
@@ -494,23 +511,6 @@
                     create_relaxed(EntryTypes::EventSentToRecipients(event_sent_to_recipients))<span class="question-mark">?</span>;
                 }
             }
-        }
-
-        <span class="kw">if </span>private_event.adds_new_recipients_for_other_events(
-            event_hash.clone().into(),
-            private_event_entry.<span class="number">0</span>.author.clone(),
-            private_event_entry.<span class="number">0</span>.payload.timestamp,
-        )<span class="question-mark">? </span>{
-            <span class="macro">info!</span>(<span class="string">"Entry {} created just now may add new recipients for other events: sending events to new recipients."</span>, event_hash);
-
-            <span class="kw">let </span>entries = query_private_event_entries(())<span class="question-mark">?</span>;
-            <span class="kw">let </span>events_sent_to_recipients_entries = query_events_sent_to_recipients_entries(())<span class="question-mark">?</span>;
-            <span class="kw">let </span>acknowledgements_entries = query_acknowledgement_entries(())<span class="question-mark">?</span>;
-            resend_events_if_necessary::&lt;T&gt;(
-                <span class="kw-2">&amp;</span>entries,
-                <span class="kw-2">&amp;</span>events_sent_to_recipients_entries,
-                <span class="kw-2">&amp;</span>acknowledgements_entries,
-            )<span class="question-mark">?</span>;
         }
     }
 
